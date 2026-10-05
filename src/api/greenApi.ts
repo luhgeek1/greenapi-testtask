@@ -230,7 +230,7 @@ export class GreenApiClient {
       undefined,
       `/${receiptId}`,
     );
-    if (!isRecord(data) || data.result !== true) {
+    if (!isRecord(data) || typeof data.result !== 'boolean') {
       throw new ApiError(
         'Не удалось подтвердить получение уведомления. Повторим автоматически.',
       );
