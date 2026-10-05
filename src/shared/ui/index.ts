@@ -1,1 +1,2 @@
-export { Brand, Icon } from './icon';
+export { Icon } from './icon';
+export { Brand } from './brand';

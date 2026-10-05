@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { errorMessage } from '@/shared/api';
 import { Icon } from '@/shared/ui';
+import './message-composer.css';
 
 export function MessageComposer({
   onSend,

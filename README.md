@@ -4,6 +4,8 @@
 
 React 19, TypeScript, Vite. Для запросов используется `fetch`; сервер и переменные окружения не нужны.
 
+Код организован по **Feature-Sliced Design**: `app`, `pages`, `widgets`, `features`, `entities`, `shared`. [Структура, правила импортов и жизненный цикл запросов](docs/ARCHITECTURE.md).
+
 ## Локальный запуск
 
 Нужны **Node.js 22.12+** и npm.

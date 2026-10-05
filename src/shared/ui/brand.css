@@ -1,0 +1,27 @@
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 750;
+  font-size: 22px;
+  letter-spacing: -0.5px;
+}
+.brand-mark {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(140deg, #447df7, #7854e8);
+  color: white;
+  border-radius: 14px;
+  font-weight: 800;
+  font-size: 27px;
+}
+.brand-byline {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.1px;
+  color: var(--muted);
+  margin-top: 3px;
+}

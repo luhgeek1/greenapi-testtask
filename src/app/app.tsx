@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { GreenApiClient } from '@/shared/api';
-import { LoginForm } from './components/LoginForm';
-import { ChatApp } from './components/ChatApp';
+import { LoginPage } from '@/pages/login';
+import { ChatPage } from '@/pages/chat';
 
 export function App() {
   const [session, setSession] = useState<{
@@ -9,12 +9,12 @@ export function App() {
     id: string;
   } | null>(null);
   return session ? (
-    <ChatApp
+    <ChatPage
       client={session.client}
       instanceId={session.id}
       onLogout={() => setSession(null)}
     />
   ) : (
-    <LoginForm onConnect={(client, id) => setSession({ client, id })} />
+    <LoginPage onConnect={(client, id) => setSession({ client, id })} />
   );
 }
