@@ -3,10 +3,10 @@ import {
   errorMessage,
   normalizePhone,
   type GreenApiClient,
-} from '../api/greenApi';
-import { addMessage, parseIncoming, type Chat } from '../chat/model';
-import { pollNotifications } from '../chat/pollNotifications';
-import { Brand, Icon } from './Icon';
+} from '@/shared/api';
+import { addMessage, parseIncoming, type Chat } from '@/entities/chat';
+import { pollNotifications } from '@/features/receive-messages';
+import { Brand, Icon } from '@/shared/ui';
 import { MessageComposer } from './MessageComposer';
 
 const time = (timestamp: number) =>

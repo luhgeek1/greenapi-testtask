@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { errorMessage, GreenApiClient } from '../api/greenApi';
-import { Brand, Icon } from './Icon';
+import { errorMessage, GreenApiClient } from '@/shared/api';
+import { Brand, Icon } from '@/shared/ui';
 
 export function LoginForm({
   onConnect,

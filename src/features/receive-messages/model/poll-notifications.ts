@@ -1,8 +1,4 @@
-import {
-  ApiError,
-  type GreenApiClient,
-  type Notification,
-} from '../api/greenApi';
+import { ApiError, type GreenApiClient, type Notification } from '@/shared/api';
 
 export function delay(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {

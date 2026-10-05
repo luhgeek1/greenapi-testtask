@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { GreenApiClient } from './api/greenApi';
+import type { GreenApiClient } from '@/shared/api';
 import { LoginForm } from './components/LoginForm';
 import { ChatApp } from './components/ChatApp';
 
