@@ -153,6 +153,7 @@ export function DashboardPage({
 
   function newChat(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setSearch('');
     void createChat.onCreate();
   }
 
@@ -360,10 +361,11 @@ export function DashboardPage({
               <button
                 type="button"
                 className="new-chat-button"
-                aria-label="Новый чат"
-                title="Новый чат"
+                aria-label="Добавить новый контакт"
+                title="Добавить контакт по номеру телефона"
                 disabled={!client}
                 onClick={() => {
+                  setSearch('');
                   workspace.openNewChat();
                 }}
               >
@@ -433,7 +435,7 @@ export function DashboardPage({
                   {search
                     ? 'Ничего не найдено'
                     : client
-                      ? 'Создайте чат по номеру телефона или дождитесь входящего сообщения.'
+                      ? 'Добавьте контакт по номеру телефона или дождитесь входящего сообщения.'
                       : 'Подключите инстанс, чтобы начать переписку.'}
                 </p>
               )}
@@ -492,7 +494,7 @@ export function DashboardPage({
               <span>
                 {active && !workspace.showNewChat
                   ? active.title
-                  : 'Новый разговор'}
+                  : 'Новый контакт'}
               </span>
             </div>
             <span
@@ -541,12 +543,16 @@ export function DashboardPage({
             </div>
           ) : workspace.showNewChat || !active ? (
             <div className="chat-empty">
-              <form className="new-chat-card" onSubmit={newChat}>
+              <form
+                className="new-chat-card"
+                onSubmit={newChat}
+                aria-label="Добавление контакта"
+              >
                 <span className="welcome-icon">
-                  <Icon name="message" />
+                  <Icon name="plus" />
                 </span>
-                <h2>Начните разговор</h2>
-                <p>Введите номер получателя в MAX</p>
+                <h2>Новый контакт</h2>
+                <p>Введите номер телефона в MAX</p>
                 <div className="recipient-field">
                   <Icon name="phone" />
                   <input
@@ -563,14 +569,26 @@ export function DashboardPage({
                     }
                   />
                 </div>
-                <button className="primary-button" disabled={createChat.busy}>
+                <button
+                  className="primary-button"
+                  disabled={createChat.busy || !createChat.phone.trim()}
+                >
                   {createChat.busy ? (
                     <span className="spinner" />
                   ) : (
-                    <Icon name="arrow" />
+                    <Icon name="plus" />
                   )}
-                  {createChat.busy ? 'Ищем получателя…' : 'Открыть чат'}
+                  {createChat.busy ? 'Проверяем номер…' : 'Добавить контакт'}
                 </button>
+                {active && (
+                  <button
+                    type="button"
+                    className="cancel-contact-button"
+                    onClick={workspace.closeNewChat}
+                  >
+                    Отмена
+                  </button>
+                )}
                 {createChat.error && (
                   <p className="connection-error" role="alert">
                     {createChat.error}

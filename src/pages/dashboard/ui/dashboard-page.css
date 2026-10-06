@@ -690,6 +690,19 @@
   width: 15px;
   height: 15px;
 }
+.cancel-contact-button {
+  margin-top: 12px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+.cancel-contact-button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
 .recipient-field {
   position: relative;
   width: 100%;

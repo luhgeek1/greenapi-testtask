@@ -128,12 +128,19 @@ export function useChatWorkspace(client: GreenApiClient | null, demo: boolean) {
     showNewChat,
     createChat,
     receiving,
-    selectChat,
+    selectChat: (id: string) => {
+      createChat.onReset();
+      selectChat(id);
+    },
     changeDraft,
     openNewChat: () => {
+      createChat.onReset();
       activeRef.current = null;
-      setActiveId(null);
       setShowNewChat(true);
+    },
+    closeNewChat: () => {
+      createChat.onReset();
+      if (activeId) selectChat(activeId);
     },
     draft: activeId ? (drafts[activeId] ?? '') : '',
     busy: activeId !== null && sending.pendingIds.includes(activeId),

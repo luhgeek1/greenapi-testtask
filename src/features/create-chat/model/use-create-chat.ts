@@ -19,11 +19,20 @@ export function useCreateChat(
   useEffect(() => {
     setBusy(false);
     setError('');
+    setPhone(initialPhone);
     return () => {
       request.current?.abort();
       request.current = null;
     };
-  }, [client]);
+  }, [client, initialPhone]);
+
+  function reset() {
+    request.current?.abort();
+    request.current = null;
+    setPhone('');
+    setBusy(false);
+    setError('');
+  }
 
   async function create() {
     if (!client || request.current) return;
@@ -56,5 +65,15 @@ export function useCreateChat(
     }
   }
 
-  return { phone, onPhoneChange: setPhone, onCreate: create, busy, error };
+  return {
+    phone,
+    onPhoneChange: (value: string) => {
+      setPhone(value);
+      setError('');
+    },
+    onReset: reset,
+    onCreate: create,
+    busy,
+    error,
+  };
 }
