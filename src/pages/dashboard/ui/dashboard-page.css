@@ -7,15 +7,15 @@
   background: var(--background);
 }
 .connection-modal {
-  width: min(660px, calc(100vw - 32px));
+  width: min(540px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
   max-height: calc(100dvh - 32px);
   margin: auto;
-  padding: 44px 48px 32px;
+  padding: 32px 36px 24px;
   overflow-y: auto;
   overscroll-behavior: contain;
   border: 0;
-  border-radius: 28px;
+  border-radius: 24px;
   color: var(--text);
   background:
     radial-gradient(ellipse 75% 48% at 18% -12%, #342298a6, transparent 80%),
@@ -32,48 +32,48 @@
   animation: fade-in 180ms both;
 }
 .connection-modal-header {
-  margin-bottom: 28px;
+  margin-bottom: 22px;
   text-align: center;
 }
 .connection-max-brand {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  margin-bottom: 34px;
+  gap: 12px;
+  margin-bottom: 24px;
 }
 .connection-max-brand img {
   display: block;
-  width: 64px;
-  height: 64px;
+  width: 52px;
+  height: 52px;
   object-fit: contain;
 }
 .connection-max-brand span {
   color: white;
   font:
-    700 52px/1 Arial,
+    700 42px/1 Arial,
     sans-serif;
   letter-spacing: -1.5px;
 }
 .connection-modal h2 {
-  font-size: 30px;
+  font-size: 25px;
   line-height: 1.25;
   font-weight: 600;
   letter-spacing: -0.7px;
 }
 #connection-description {
-  margin-top: 16px;
+  margin-top: 12px;
   color: #aaaab0;
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1.5;
   text-align: center;
   text-wrap: pretty;
 }
 .connection-modal .field {
-  padding: 12px 20px 14px;
-  margin-bottom: 12px;
+  padding: 10px 16px 11px;
+  margin-bottom: 10px;
   border: 1px solid transparent;
-  border-radius: 18px;
+  border-radius: 15px;
   background: #2b2c2f;
   transition:
     border-color 160ms,
@@ -88,12 +88,12 @@
 }
 .connection-modal input {
   display: block;
-  height: 28px;
+  height: 24px;
   padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
-  font: 16px/28px var(--mono);
+  font: 14px/24px var(--mono);
 }
 .connection-modal input:focus {
   box-shadow: none;
@@ -102,19 +102,19 @@
   color: #9b9c9f;
 }
 .connection-modal label {
-  margin-bottom: 5px;
+  margin-bottom: 4px;
   color: #a8a9ae;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 11px;
+  line-height: 14px;
 }
 .connection-privacy {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin-top: 20px;
+  margin-top: 16px;
   color: var(--subtle);
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.5;
 }
 .connection-privacy svg {
@@ -230,11 +230,11 @@
   gap: 6px;
   width: fit-content;
   max-width: 100%;
-  margin: 16px auto 0;
+  margin: 12px auto 0;
   padding: 0;
   border: 0;
   background: transparent;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.5;
   color: var(--muted);
 }
@@ -246,10 +246,10 @@
   height: 14px;
 }
 .connect-button {
-  min-height: 60px;
-  margin-top: 24px;
-  border-radius: 20px;
-  font-size: 18px;
+  min-height: 50px;
+  margin-top: 20px;
+  border-radius: 16px;
+  font-size: 16px;
 }
 .connect-button:disabled {
   opacity: 1;
@@ -950,35 +950,34 @@
 }
 @media (max-width: 700px) {
   .connection-modal {
-    padding: 28px 20px 24px;
-    border-radius: 24px;
+    padding: 24px 18px 20px;
+    border-radius: 20px;
   }
   .connection-max-brand {
-    gap: 12px;
-    margin-bottom: 26px;
+    gap: 10px;
+    margin-bottom: 20px;
   }
   .connection-max-brand img {
-    width: 52px;
-    height: 52px;
+    width: 44px;
+    height: 44px;
   }
   .connection-max-brand span {
-    font-size: 44px;
+    font-size: 36px;
   }
   .connection-modal h2 {
-    font-size: clamp(22px, 6vw, 28px);
+    font-size: clamp(20px, 5.5vw, 24px);
   }
   .connection-modal .field {
-    padding-inline: 14px;
-    border-radius: 16px;
+    padding-inline: 12px;
+    border-radius: 14px;
   }
-  #connection-description {
-    font-size: 13px;
+  .connection-modal input {
+    font-size: 16px;
   }
   .connect-button {
-    min-height: 56px;
-    margin-top: 20px;
-    font-size: 16px;
-    border-radius: 18px;
+    min-height: 48px;
+    margin-top: 18px;
+    font-size: 15px;
   }
   .dashboard-page {
     height: auto;
