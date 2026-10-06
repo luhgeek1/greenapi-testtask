@@ -62,6 +62,10 @@ export function DashboardPage({
         .includes(search.toLowerCase().trim()),
     );
   const unread = workspace.chats.reduce((sum, chat) => sum + chat.unread, 0);
+  const credentialsComplete =
+    credentials.idInstance.trim() &&
+    credentials.apiTokenInstance.trim() &&
+    credentials.apiUrl.trim();
 
   useEffect(() => () => action.current?.abort(), []);
   useEffect(() => {
@@ -197,16 +201,15 @@ export function DashboardPage({
         onKeyDown={connectionKeyDown}
       >
         <header className="connection-modal-header">
-          <span className="connection-modal-icon" aria-hidden="true">
-            <Icon name="connection" />
-          </span>
-          <p className="connection-eyebrow">GREEN-API Connection</p>
-          <h2 id="connection-title">Подключение к MAX</h2>
-          <p id="connection-description">
-            {demo
-              ? 'Демо готово к запуску. Данные уже заполнены.'
-              : 'Введите данные инстанса, чтобы открыть чаты.'}
-          </p>
+          <div className="connection-max-brand" aria-hidden="true">
+            <img src="/max-logo.png" alt="" width="64" height="64" />
+            <span>MAX</span>
+          </div>
+          <h2 id="connection-title">
+            Подключение к MAX
+            <br />
+            через GREEN-API
+          </h2>
         </header>
         <form onSubmit={(event) => void connect(event)}>
           <fieldset
@@ -220,7 +223,7 @@ export function DashboardPage({
                 pattern="[0-9]+"
                 required
                 autoComplete="off"
-                placeholder="idInstance"
+                placeholder="3100000000"
                 value={credentials.idInstance}
                 onChange={(event) =>
                   updateCredential('idInstance', event.target.value)
@@ -235,7 +238,7 @@ export function DashboardPage({
                   type={showToken ? 'text' : 'password'}
                   required
                   autoComplete="off"
-                  placeholder="apiTokenInstance"
+                  placeholder="Ваш API-токен"
                   value={credentials.apiTokenInstance}
                   onChange={(event) =>
                     updateCredential('apiTokenInstance', event.target.value)
@@ -275,16 +278,17 @@ export function DashboardPage({
             {demo ? 'Перейти к реальному API' : 'Открыть демо'}
             <Icon name="arrow" />
           </button>
+          <p id="connection-description">
+            {demo
+              ? 'Демо готово к запуску. Данные вымышленные, ответы приходят локально.'
+              : 'Введите данные инстанса из личного кабинета GREEN-API.'}
+          </p>
           {!client && (
             <button
               className="primary-button connect-button"
-              disabled={connecting || Boolean(pending)}
+              disabled={connecting || Boolean(pending) || !credentialsComplete}
             >
-              {connecting ? (
-                <span className="spinner" />
-              ) : (
-                <Icon name="connection" />
-              )}
+              {connecting ? <span className="spinner" /> : null}
               {connecting ? 'Подключаемся…' : 'Подключиться'}
             </button>
           )}
