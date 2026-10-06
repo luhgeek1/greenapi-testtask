@@ -5,19 +5,20 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from 'react';
-import { useApiRequest } from '@/features/api-request';
+import { useApiLog } from '@/features/api-log';
 import { ApiResponsePanel } from '@/widgets/api-response';
-import { demoCredentials, type Credentials } from '@/shared/api';
+import {
+  GreenApiClient,
+  createDemoTransport,
+  demoCredentials,
+  errorMessage,
+  type ApiMethod,
+  type Credentials,
+} from '@/shared/api';
+import { formatDay, formatTime } from '@/entities/chat';
 import { Icon } from '@/shared/ui';
+import { useChatWorkspace } from '../model/use-chat-workspace';
 import './dashboard-page.css';
-
-interface SentItem {
-  id: number;
-  text: string;
-  phone: string;
-  file: boolean;
-  time: string;
-}
 
 export function DashboardPage({
   demo,
@@ -31,74 +32,115 @@ export function DashboardPage({
       ? { ...demoCredentials }
       : { idInstance: '', apiTokenInstance: '', apiUrl: '' },
   );
+  const [transport] = useState(() =>
+    demo ? createDemoTransport() : undefined,
+  );
+  const [client, setClient] = useState<GreenApiClient | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [connectionError, setConnectionError] = useState('');
+  const [pending, setPending] = useState<ApiMethod | null>(null);
   const [showToken, setShowToken] = useState(false);
-  const [messagePhone, setMessagePhone] = useState(
-    demo ? '+7 999 123-45-67' : '',
-  );
-  const [message, setMessage] = useState(
-    demo ? 'Привет! Проверяю GREEN-API.' : '',
-  );
-  const [filePhone, setFilePhone] = useState(demo ? '+375 29 123-45-67' : '');
-  const [urlFile, setUrlFile] = useState(
-    demo ? 'https://example.com/sample.pdf' : '',
-  );
-  const [fileName, setFileName] = useState(demo ? 'sample.pdf' : '');
-  const [messages, setMessages] = useState<SentItem[]>([]);
-  const sequence = useRef(0);
+  const [search, setSearch] = useState('');
+  const action = useRef<AbortController | null>(null);
   const stream = useRef<HTMLDivElement>(null);
-  const fileDialog = useRef<HTMLDialogElement>(null);
-  const fileUrlInput = useRef<HTMLInputElement>(null);
-  const { execute, pending, result, history, clear } = useApiRequest(demo);
+  const composer = useRef<HTMLTextAreaElement>(null);
+  const phoneInput = useRef<HTMLInputElement>(null);
+  const { record, history, result, clear } = useApiLog();
+  const workspace = useChatWorkspace(client, demo);
+  const { active, createChat, receiving } = workspace;
+  const lastMessage = active?.messages.at(-1);
+  const chats = [...workspace.chats]
+    .sort(
+      (a, b) =>
+        (b.messages.at(-1)?.timestamp ?? 0) -
+        (a.messages.at(-1)?.timestamp ?? 0),
+    )
+    .filter((chat) =>
+      `${chat.title} ${chat.phone ?? ''}`
+        .toLowerCase()
+        .includes(search.toLowerCase().trim()),
+    );
+  const unread = workspace.chats.reduce((sum, chat) => sum + chat.unread, 0);
 
+  useEffect(() => () => action.current?.abort(), []);
   useEffect(() => {
     if (stream.current) stream.current.scrollTop = stream.current.scrollHeight;
-  }, [messages]);
+  }, [active?.id, lastMessage?.id]);
+  useEffect(() => {
+    if (client && workspace.showNewChat) phoneInput.current?.focus();
+    else if (active) composer.current?.focus();
+  }, [client, workspace.showNewChat, active?.id]);
+
+  useEffect(() => {
+    const input = composer.current;
+    if (!input) return;
+    input.style.height = '44px';
+    input.style.height = `${Math.min(132, input.scrollHeight)}px`;
+  }, [workspace.draft, active?.id, workspace.showNewChat]);
 
   function updateCredential(field: keyof Credentials, value: string) {
     setCredentials((current) => ({ ...current, [field]: value }));
+    setConnectionError('');
   }
 
-  function addSent(text: string, phone: string, file: boolean) {
-    const time = new Intl.DateTimeFormat('ru-RU', {
-      timeZone: 'Europe/Moscow',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date());
-    const item = { id: ++sequence.current, text, phone, file, time };
-    setMessages((current) => [...current, item]);
-  }
-
-  async function sendMessage(event: FormEvent<HTMLFormElement>) {
+  async function connect(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const response = await execute(credentials, {
-      method: 'sendMessage',
-      phone: messagePhone,
-      message,
-    });
-    if (response && !response.error) {
-      addSent(message, messagePhone, false);
-      setMessage('');
+    if (action.current) return;
+    const controller = new AbortController();
+    action.current = controller;
+    setConnecting(true);
+    setConnectionError('');
+    try {
+      const next = new GreenApiClient(credentials, transport, record);
+      await next.connect(controller.signal);
+      if (!controller.signal.aborted) setClient(next);
+    } catch (cause) {
+      if (!controller.signal.aborted) setConnectionError(errorMessage(cause));
+    } finally {
+      if (action.current === controller) action.current = null;
+      if (!controller.signal.aborted) setConnecting(false);
     }
   }
 
-  async function sendFile(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const response = await execute(credentials, {
-      method: 'sendFileByUrl',
-      phone: filePhone,
-      urlFile,
-      fileName,
-    });
-    if (response && !response.error) {
-      addSent(fileName, filePhone, true);
-      fileDialog.current?.close();
+  function disconnect() {
+    action.current?.abort();
+    action.current = null;
+    setPending(null);
+    setConnecting(false);
+    setClient(null);
+    setShowToken(false);
+    setSearch('');
+    clear();
+    if (!demo)
+      setCredentials((current) => ({ ...current, apiTokenInstance: '' }));
+  }
+
+  async function diagnose(method: 'getSettings' | 'getStateInstance') {
+    if (action.current) return;
+    const controller = new AbortController();
+    action.current = controller;
+    setPending(method);
+    setConnectionError('');
+    try {
+      await (client ?? new GreenApiClient(credentials, transport, record))[
+        method
+      ](controller.signal);
+    } catch (cause) {
+      if (!controller.signal.aborted) setConnectionError(errorMessage(cause));
+    } finally {
+      if (action.current === controller) action.current = null;
+      if (!controller.signal.aborted) setPending(null);
     }
   }
 
-  function openFile() {
-    if (messagePhone.trim()) setFilePhone(messagePhone);
-    fileDialog.current?.showModal();
-    fileUrlInput.current?.focus();
+  function newChat(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void createChat.onCreate();
+  }
+
+  function sendMessage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void workspace.sendMessage(workspace.draft);
   }
 
   function composerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -108,253 +150,472 @@ export function DashboardPage({
       !event.nativeEvent.isComposing
     ) {
       event.preventDefault();
-      event.currentTarget.form?.requestSubmit();
+      if (!workspace.busy && workspace.draft.trim())
+        event.currentTarget.form?.requestSubmit();
     }
   }
 
   return (
-    <div className="dashboard-page">
-      <aside className="client-sidebar" aria-label="Параметры инстанса">
+    <div className={`dashboard-page ${client ? 'is-connected' : ''}`}>
+      <aside className="client-sidebar" aria-label="Подключение и чаты">
         <div className="sidebar-content">
           <header className="sidebar-brand">
             <span
-              className={`brand-dot ${pending ? 'is-working' : ''}`}
+              className={`brand-dot ${connecting ? 'is-working' : ''}`}
               aria-hidden="true"
             />
             <h1>MAX Client</h1>
+            {demo && <span className="demo-badge">DEMO</span>}
           </header>
           <section
             className="connection-section"
-            aria-labelledby="connection-title"
+            aria-label="GREEN-API Connection"
           >
-            <h2
-              id="connection-title"
-              className="sidebar-heading"
-              aria-label="GREEN-API Connection"
-            >
-              <Icon name="settings" />
-              <span>Connection</span>
-            </h2>
-            <fieldset disabled={Boolean(pending)}>
-              <div className="field">
-                <label htmlFor="idInstance">idInstance</label>
-                <input
-                  id="idInstance"
-                  name="idInstance"
-                  inputMode="numeric"
-                  pattern="[0-9]+"
-                  required
-                  autoComplete="off"
-                  placeholder="idInstance"
-                  value={credentials.idInstance}
-                  onChange={(event) =>
-                    updateCredential('idInstance', event.target.value)
-                  }
-                />
+            <details className="connection-details" open={!client}>
+              <summary className="sidebar-heading">
+                <Icon name="settings" />
+                <span>Connection</span>
+                <span className="connection-chevron">›</span>
+              </summary>
+              <form onSubmit={(event) => void connect(event)}>
+                <fieldset
+                  disabled={connecting || Boolean(pending) || Boolean(client)}
+                >
+                  <div className="field">
+                    <label htmlFor="idInstance">idInstance</label>
+                    <input
+                      id="idInstance"
+                      inputMode="numeric"
+                      pattern="[0-9]+"
+                      required
+                      autoComplete="off"
+                      placeholder="idInstance"
+                      value={credentials.idInstance}
+                      onChange={(event) =>
+                        updateCredential('idInstance', event.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="apiTokenInstance">apiTokenInstance</label>
+                    <div className="token-field">
+                      <input
+                        id="apiTokenInstance"
+                        type={showToken ? 'text' : 'password'}
+                        required
+                        autoComplete="off"
+                        placeholder="apiTokenInstance"
+                        value={credentials.apiTokenInstance}
+                        onChange={(event) =>
+                          updateCredential(
+                            'apiTokenInstance',
+                            event.target.value,
+                          )
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowToken((value) => !value)}
+                        aria-label={
+                          showToken ? 'Скрыть токен' : 'Показать токен'
+                        }
+                        aria-pressed={showToken}
+                      >
+                        <Icon name={showToken ? 'eyeOff' : 'eye'} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="apiUrl">apiUrl</label>
+                    <input
+                      id="apiUrl"
+                      type="url"
+                      required
+                      autoComplete="off"
+                      placeholder="https://3100.api.green-api.com"
+                      value={credentials.apiUrl}
+                      onChange={(event) =>
+                        updateCredential('apiUrl', event.target.value)
+                      }
+                    />
+                  </div>
+                </fieldset>
+                <button
+                  type="button"
+                  className="mode-switch"
+                  onClick={onModeChange}
+                  disabled={connecting || Boolean(pending)}
+                >
+                  {demo ? 'Перейти к реальному API' : 'Открыть демо'}
+                  <Icon name="arrow" />
+                </button>
+                {!client && (
+                  <button
+                    className="primary-button connect-button"
+                    disabled={connecting || Boolean(pending)}
+                  >
+                    {connecting ? (
+                      <span className="spinner" />
+                    ) : (
+                      <Icon name="connection" />
+                    )}
+                    {connecting ? 'Подключаемся…' : 'Подключиться'}
+                  </button>
+                )}
+              </form>
+            </details>
+            {client && (
+              <div className="session-summary">
+                <span className="session-status">
+                  <i />
+                  Инстанс {credentials.idInstance}
+                </span>
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={disconnect}
+                  aria-label="Отключиться"
+                  title="Отключиться"
+                >
+                  <Icon name="logout" />
+                </button>
               </div>
-              <div className="field">
-                <label htmlFor="apiTokenInstance">apiTokenInstance</label>
-                <div className="token-field">
-                  <input
-                    id="apiTokenInstance"
-                    name="apiTokenInstance"
-                    type={showToken ? 'text' : 'password'}
-                    required
-                    autoComplete="off"
-                    placeholder="apiTokenInstance"
-                    value={credentials.apiTokenInstance}
-                    onChange={(event) =>
-                      updateCredential('apiTokenInstance', event.target.value)
-                    }
-                  />
+            )}
+            {connectionError && (
+              <p className="connection-error" role="alert">
+                {connectionError}
+              </p>
+            )}
+          </section>
+          <section className="chats-section" aria-labelledby="chats-title">
+            <div className="chats-heading">
+              <h2 id="chats-title">
+                Чаты
+                {unread > 0 && (
+                  <span
+                    className="total-unread"
+                    aria-label={`${unread} непрочитанных`}
+                  >
+                    {unread}
+                  </span>
+                )}
+              </h2>
+              <button
+                type="button"
+                className="new-chat-button"
+                aria-label="Новый чат"
+                title="Новый чат"
+                disabled={!client}
+                onClick={() => {
+                  workspace.openNewChat();
+                }}
+              >
+                <Icon name="plus" />
+              </button>
+            </div>
+            <div className="chat-search">
+              <Icon name="search" />
+              <input
+                aria-label="Поиск чатов"
+                placeholder="Найти"
+                value={search}
+                disabled={!client}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
+            <nav className="chat-list" aria-label="Список чатов">
+              {chats.map((chat) => {
+                const preview = chat.messages.at(-1);
+                return (
                   <button
                     type="button"
-                    onClick={() => setShowToken((value) => !value)}
-                    aria-label={showToken ? 'Скрыть токен' : 'Показать токен'}
-                    aria-pressed={showToken}
+                    className={`chat-list-item ${active?.id === chat.id && !workspace.showNewChat ? 'is-active' : ''}`}
+                    key={chat.id}
+                    aria-label={`Чат ${chat.title}`}
+                    aria-current={
+                      active?.id === chat.id && !workspace.showNewChat
+                        ? 'page'
+                        : undefined
+                    }
+                    onClick={() => {
+                      workspace.selectChat(chat.id);
+                    }}
                   >
-                    <Icon name={showToken ? 'eyeOff' : 'eye'} />
+                    <span
+                      className={`chat-avatar ${[...chat.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 2 === 0 ? 'avatar-violet' : ''}`}
+                    >
+                      {chat.title.startsWith('+') ? (
+                        <Icon name="phone" />
+                      ) : (
+                        chat.title[0]
+                      )}
+                    </span>
+                    <span className="chat-list-copy">
+                      <span className="chat-list-title">{chat.title}</span>
+                      <span className="chat-preview">
+                        {preview?.direction === 'outgoing' ? 'Вы: ' : ''}
+                        {preview?.text || 'Начните переписку'}
+                      </span>
+                    </span>
+                    <span className="chat-list-meta">
+                      {preview && <time>{formatTime(preview.timestamp)}</time>}
+                      {chat.unread > 0 && (
+                        <span
+                          className="unread-badge"
+                          aria-label={`${chat.unread} непрочитанных`}
+                        >
+                          {chat.unread}
+                        </span>
+                      )}
+                    </span>
                   </button>
-                </div>
-              </div>
-              <div className="field">
-                <label htmlFor="apiUrl">apiUrl</label>
-                <input
-                  id="apiUrl"
-                  name="apiUrl"
-                  type="url"
-                  required
-                  autoComplete="off"
-                  placeholder="https://3100.api.green-api.com"
-                  value={credentials.apiUrl}
-                  onChange={(event) =>
-                    updateCredential('apiUrl', event.target.value)
-                  }
-                />
-              </div>
-            </fieldset>
-            <button
-              type="button"
-              className="mode-switch"
-              onClick={onModeChange}
-              disabled={Boolean(pending)}
-            >
-              {demo ? 'Перейти к реальному API' : 'Открыть демо'}
-              <Icon name="arrow" />
-            </button>
-          </section>
-          <section className="methods-section" aria-labelledby="methods-title">
-            <h2 id="methods-title" className="sidebar-heading">
-              Methods
-            </h2>
-            <button
-              type="button"
-              className="method-button settings-button"
-              disabled={Boolean(pending)}
-              onClick={() =>
-                void execute(credentials, { method: 'getSettings' })
-              }
-            >
-              {pending === 'getSettings' ? (
-                <span className="spinner" />
-              ) : (
-                <Icon name="server" />
+                );
+              })}
+              {chats.length === 0 && (
+                <p className="chat-list-empty">
+                  {search
+                    ? 'Ничего не найдено'
+                    : client
+                      ? 'Создайте чат по номеру телефона или дождитесь входящего сообщения.'
+                      : 'Подключите инстанс, чтобы начать переписку.'}
+                </p>
               )}
-              <span>getSettings</span>
-            </button>
-            <button
-              type="button"
-              className="method-button state-button"
-              disabled={Boolean(pending)}
-              onClick={() =>
-                void execute(credentials, { method: 'getStateInstance' })
-              }
-            >
-              {pending === 'getStateInstance' ? (
-                <span className="spinner" />
-              ) : (
-                <Icon name="server" />
-              )}
-              <span>getStateInstance</span>
-            </button>
+            </nav>
           </section>
           <footer className="sidebar-footer">
+            <details className="api-diagnostics">
+              <summary>
+                <Icon name="code" />
+                Диагностика API<span>›</span>
+              </summary>
+              <button
+                type="button"
+                className="method-button settings-button"
+                disabled={connecting || Boolean(pending)}
+                onClick={() => void diagnose('getSettings')}
+              >
+                <Icon name="server" />
+                getSettings
+              </button>
+              <button
+                type="button"
+                className="method-button state-button"
+                disabled={connecting || Boolean(pending)}
+                onClick={() => void diagnose('getStateInstance')}
+              >
+                <Icon name="server" />
+                getStateInstance
+              </button>
+            </details>
             <p>
               <Icon name="lock" />
-              Токен — только в памяти вкладки
+              Токен хранится только в этой вкладке
             </p>
           </footer>
         </div>
       </aside>
       <main className="client-main">
-        <section className="chat-panel" aria-labelledby="message-title">
-          <h2 id="message-title" className="sr-only">
-            Send message
-          </h2>
-          <div className="chat-topbar">
-            <div className="recipient-field">
-              <label className="sr-only" htmlFor="message-phone">
-                Номер телефона
-              </label>
-              <Icon name="phone" />
-              <input
-                id="message-phone"
-                type="tel"
-                required
-                autoComplete="off"
-                form="message-form"
-                aria-label="Номер телефона"
-                placeholder="79991234567"
-                disabled={Boolean(pending)}
-                value={messagePhone}
-                onChange={(event) => setMessagePhone(event.target.value)}
-              />
+        <section className="chat-panel" aria-label="Переписка">
+          <header className="chat-topbar">
+            <div className="chat-topbar-left">
+              <Icon name="chat" />
+              <span>MAX Messenger</span>
             </div>
-            {demo && (
-              <p className="demo-notice">
-                Демо-режим <span>· без отправки в MAX</span>
+            <div className="contact-pill">
+              <Icon
+                name={active && !workspace.showNewChat ? 'phone' : 'chat'}
+              />
+              <span>
+                {active && !workspace.showNewChat
+                  ? active.title
+                  : 'Новый разговор'}
+              </span>
+            </div>
+            <span
+              className={`connection-indicator ${client && !receiving.error ? 'online' : ''}`}
+              role="status"
+            >
+              <i />
+              {!client
+                ? 'Не подключено'
+                : receiving.stopped
+                  ? 'Получение остановлено'
+                  : receiving.error
+                    ? 'Переподключение…'
+                    : demo
+                      ? 'Демо · на связи'
+                      : 'На связи'}
+            </span>
+          </header>
+          {client && receiving.error && (
+            <div className="receiving-notice" role="alert">
+              <span>
+                {receiving.stopped && 'Получение сообщений остановлено. '}
+                {receiving.error}
+                {!receiving.stopped && ' Повторяем автоматически.'}
+              </span>
+              <button type="button" onClick={receiving.onRetry}>
+                Повторить
+              </button>
+            </div>
+          )}
+          {!client ? (
+            <div className="chat-empty welcome-state">
+              <span className="welcome-icon">
+                <Icon name="chat" />
+              </span>
+              <h2>Ваши разговоры — здесь</h2>
+              <p>
+                Подключите GREEN-API инстанс
+                <br />и начните переписку в MAX.
               </p>
-            )}
-          </div>
-          <div
-            className="message-stream"
-            ref={stream}
-            role="log"
-            aria-label="Отправленные сообщения"
-            aria-live="polite"
-          >
-            {messages.length === 0 ? (
-              <div className="chat-empty">Тут пока ничего нет</div>
-            ) : (
-              messages.map((item) => (
-                <div className="message-row" key={item.id}>
-                  <article
-                    className={`sent-bubble ${item.file ? 'file-bubble' : ''}`}
-                  >
-                    {item.file && <Icon name="file" />}
-                    <div className="bubble-text">{item.text}</div>
-                    <footer className="bubble-meta">
-                      <span>{item.phone}</span>
-                      <time>{item.time}</time>
-                      <span
-                        className="sent-state"
-                        title={demo ? 'Демо-отправка' : 'Запрос принят API'}
-                      >
-                        <Icon name="check" />
-                      </span>
-                    </footer>
-                  </article>
-                </div>
-              ))
-            )}
-          </div>
-          <form
-            id="message-form"
-            className="message-form"
-            onSubmit={(event) => void sendMessage(event)}
-            aria-busy={pending === 'sendMessage'}
-          >
-            <div className="composer-field">
-              <label className="sr-only" htmlFor="message">
-                Сообщение
-              </label>
-              <Icon name="message" />
-              <textarea
-                id="message"
-                required
-                maxLength={4000}
-                rows={1}
-                placeholder="Сообщение…"
-                disabled={Boolean(pending)}
-                value={message}
-                onChange={(event) => setMessage(event.target.value)}
-                onKeyDown={composerKeyDown}
-              />
+              <span className="welcome-caption">
+                {demo
+                  ? 'Демо использует вымышленные данные и локальные ответы.'
+                  : 'Номер получателя · текст · настоящий ответ'}
+              </span>
             </div>
-            <button
-              type="button"
-              className="attachment-button"
-              onClick={openFile}
-              disabled={Boolean(pending)}
-              aria-label="Отправить файл"
-              title="Отправить файл"
-            >
-              <Icon name="attach" />
-            </button>
-            <button
-              type="submit"
-              className="send-button"
-              disabled={Boolean(pending) || !message.trim()}
-              aria-label="sendMessage"
-              title="Отправить сообщение"
-            >
-              {pending === 'sendMessage' ? (
-                <span className="spinner" />
-              ) : (
-                <Icon name="send" />
+          ) : workspace.showNewChat || !active ? (
+            <div className="chat-empty">
+              <form className="new-chat-card" onSubmit={newChat}>
+                <span className="welcome-icon">
+                  <Icon name="message" />
+                </span>
+                <h2>Начните разговор</h2>
+                <p>Введите номер получателя в MAX</p>
+                <div className="recipient-field">
+                  <Icon name="phone" />
+                  <input
+                    ref={phoneInput}
+                    aria-label="Телефон получателя"
+                    type="tel"
+                    required
+                    autoComplete="off"
+                    placeholder="+7 999 123-45-67"
+                    value={createChat.phone}
+                    disabled={createChat.busy}
+                    onChange={(event) =>
+                      createChat.onPhoneChange(event.target.value)
+                    }
+                  />
+                </div>
+                <button className="primary-button" disabled={createChat.busy}>
+                  {createChat.busy ? (
+                    <span className="spinner" />
+                  ) : (
+                    <Icon name="arrow" />
+                  )}
+                  {createChat.busy ? 'Ищем получателя…' : 'Открыть чат'}
+                </button>
+                {createChat.error && (
+                  <p className="connection-error" role="alert">
+                    {createChat.error}
+                  </p>
+                )}
+                <span className="welcome-caption">
+                  {demo
+                    ? 'Демонстрационные номера: +7 999 123-45-67 и +375 29 123-45-67'
+                    : 'Поддерживаются номера РФ (+7) и Беларуси (+375)'}
+                </span>
+              </form>
+            </div>
+          ) : (
+            <>
+              <div
+                className="message-stream"
+                ref={stream}
+                role="log"
+                aria-label="Сообщения чата"
+                aria-live="polite"
+                aria-relevant="additions"
+              >
+                {active.messages.length === 0 && (
+                  <div className="chat-empty">Тут пока ничего нет</div>
+                )}
+                {active.messages.map((item, index) => (
+                  <div key={`${item.direction}-${item.id}`}>
+                    {(index === 0 ||
+                      formatDay(active.messages[index - 1].timestamp) !==
+                        formatDay(item.timestamp)) && (
+                      <div className="day-separator">
+                        <span>{formatDay(item.timestamp)}</span>
+                      </div>
+                    )}
+                    <div className={`message-row ${item.direction}`}>
+                      <article
+                        className={`sent-bubble ${item.direction === 'incoming' ? 'incoming-bubble' : ''}`}
+                        aria-label={
+                          item.direction === 'incoming'
+                            ? 'Входящее сообщение'
+                            : 'Исходящее сообщение'
+                        }
+                      >
+                        <p className="bubble-text">{item.text}</p>
+                        <div className="bubble-meta">
+                          <time
+                            dateTime={new Date(item.timestamp).toISOString()}
+                          >
+                            {formatTime(item.timestamp)}
+                          </time>
+                          {item.direction === 'outgoing' && (
+                            <span
+                              className="sent-state"
+                              aria-label="Принято API"
+                              title="Принято API"
+                            >
+                              <Icon name="check" />
+                            </span>
+                          )}
+                        </div>
+                      </article>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {workspace.sendError && (
+                <p className="send-error" role="alert">
+                  {workspace.sendError}
+                </p>
               )}
-            </button>
-          </form>
+              <form
+                className="message-form"
+                onSubmit={sendMessage}
+                aria-label="Отправка сообщения"
+              >
+                <div className="composer-field">
+                  <Icon name="message" />
+                  <textarea
+                    ref={composer}
+                    aria-label="Сообщение"
+                    required
+                    maxLength={4000}
+                    rows={1}
+                    placeholder="Написать сообщение…"
+                    value={workspace.draft}
+                    onChange={(event) =>
+                      workspace.changeDraft(event.target.value)
+                    }
+                    onKeyDown={composerKeyDown}
+                  />
+                </div>
+                <button
+                  className="send-button"
+                  disabled={workspace.busy || !workspace.draft.trim()}
+                  aria-label="Отправить сообщение"
+                  title="Отправить сообщение"
+                >
+                  {workspace.busy ? (
+                    <span className="spinner" />
+                  ) : (
+                    <Icon name="send" />
+                  )}
+                </button>
+              </form>
+              <div className="composer-hint">
+                Enter — отправить · Shift + Enter — новая строка
+              </div>
+            </>
+          )}
         </section>
         <ApiResponsePanel
           result={result}
@@ -363,82 +624,6 @@ export function DashboardPage({
           onClear={clear}
         />
       </main>
-      <dialog
-        className="file-dialog"
-        ref={fileDialog}
-        aria-labelledby="file-title"
-      >
-        <header className="file-dialog-header">
-          <div>
-            <h2 id="file-title">Send file</h2>
-            <p>Отправить файл по прямой ссылке</p>
-          </div>
-          <button
-            type="button"
-            className="icon-button"
-            onClick={() => fileDialog.current?.close()}
-            aria-label="Закрыть форму файла"
-          >
-            <Icon name="close" />
-          </button>
-        </header>
-        <form
-          onSubmit={(event) => void sendFile(event)}
-          aria-busy={pending === 'sendFileByUrl'}
-        >
-          <fieldset disabled={Boolean(pending)}>
-            <div className="field">
-              <label htmlFor="file-phone">Номер телефона</label>
-              <input
-                id="file-phone"
-                type="tel"
-                required
-                autoComplete="off"
-                placeholder="+7 999 123-45-67"
-                value={filePhone}
-                onChange={(event) => setFilePhone(event.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="urlFile">URL файла</label>
-              <input
-                id="urlFile"
-                ref={fileUrlInput}
-                type="url"
-                required
-                autoComplete="off"
-                placeholder="https://example.com/document.pdf"
-                value={urlFile}
-                onChange={(event) => setUrlFile(event.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="fileName">Имя файла</label>
-              <input
-                id="fileName"
-                required
-                autoComplete="off"
-                placeholder="document.pdf"
-                value={fileName}
-                onChange={(event) => setFileName(event.target.value)}
-              />
-            </div>
-            <button type="submit" className="primary-button">
-              {pending === 'sendFileByUrl' ? (
-                <span className="spinner" />
-              ) : (
-                <Icon name="file" />
-              )}
-              sendFileByUrl
-            </button>
-            {result?.method === 'sendFileByUrl' && result.error && (
-              <p className="response-error" role="alert">
-                {result.error}
-              </p>
-            )}
-          </fieldset>
-        </form>
-      </dialog>
     </div>
   );
 }

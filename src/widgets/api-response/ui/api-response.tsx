@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ApiOperation, RequestResult } from '@/features/api-request';
+import type { RequestResult } from '@/features/api-log';
+import type { ApiMethod } from '@/shared/api';
 import { Icon } from '@/shared/ui';
 import './api-response.css';
 
@@ -32,7 +33,7 @@ export function ApiResponsePanel({
 }: {
   result: RequestResult | null;
   history: RequestResult[];
-  pending: ApiOperation['method'] | null;
+  pending: ApiMethod | null;
   onClear: () => void;
 }) {
   const [copiedText, setCopiedText] = useState('');
@@ -41,8 +42,9 @@ export function ApiResponsePanel({
   const text = result ? JSON.stringify(result.data, null, 2) : '';
 
   useEffect(() => {
-    if (content.current)
-      content.current.scrollTop = content.current.scrollHeight;
+    const panel = content.current;
+    if (panel && !panel.querySelector('details[open]'))
+      panel.scrollTop = panel.scrollHeight;
   }, [history, pending]);
 
   async function copy() {
@@ -178,9 +180,7 @@ export function ApiResponsePanel({
               </pre>
             </details>
             {entry === result && entry.error && (
-              <p className="response-error" role="alert">
-                {entry.error}
-              </p>
+              <p className="response-error">{entry.error}</p>
             )}
           </div>
         ))}

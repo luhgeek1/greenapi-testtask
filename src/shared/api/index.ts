@@ -3,6 +3,13 @@ export {
   GreenApiClient,
   errorMessage,
   normalizePhone,
+  isRecord,
 } from './green-api';
-export type { Credentials, ApiResponse, SendFileInput } from './green-api';
+export type {
+  Credentials,
+  ApiResponse,
+  Notification,
+  ApiMethod,
+  ApiEvent,
+} from './green-api';
 export { createDemoTransport, demoCredentials } from './demo-transport';

@@ -9,10 +9,25 @@ export interface ApiResponse {
   status: number;
 }
 
-export interface SendFileInput {
-  phone: string;
-  urlFile: string;
-  fileName: string;
+export interface Notification {
+  receiptId: number;
+  body: unknown;
+}
+
+export type ApiMethod =
+  | 'getSettings'
+  | 'getStateInstance'
+  | 'checkAccount'
+  | 'sendMessage'
+  | 'receiveNotification'
+  | 'deleteNotification';
+
+export interface ApiEvent {
+  method: ApiMethod;
+  data: unknown;
+  status?: number;
+  duration: number;
+  error: string;
 }
 
 export class ApiError extends Error {
@@ -26,7 +41,7 @@ export class ApiError extends Error {
   }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
@@ -64,6 +79,7 @@ export class GreenApiClient {
   constructor(
     credentials: Credentials,
     private readonly transport: typeof fetch = fetch,
+    private readonly onResponse?: (event: ApiEvent) => void,
   ) {
     const idInstance = credentials.idInstance.trim();
     const apiTokenInstance = credentials.apiTokenInstance.trim();
@@ -98,16 +114,19 @@ export class GreenApiClient {
   }
 
   private async request(
-    method: 'GET' | 'POST',
-    action: string,
+    method: 'GET' | 'POST' | 'DELETE',
+    action: ApiMethod,
     signal: AbortSignal,
     body?: unknown,
+    suffix = '',
   ): Promise<ApiResponse> {
     const { apiUrl, idInstance, apiTokenInstance } = this.credentials;
-    const url = `${apiUrl}/waInstance${idInstance}/${action}/${encodeURIComponent(apiTokenInstance)}`;
+    const url = `${apiUrl}/waInstance${idInstance}/${action}/${encodeURIComponent(apiTokenInstance)}${suffix}`;
+    const started = performance.now();
     const timeout = AbortSignal.timeout(25_000);
     const transport = this.transport;
     try {
+      signal.throwIfAborted();
       const response = await transport(url, {
         method,
         signal: AbortSignal.any([signal, timeout]),
@@ -122,6 +141,7 @@ export class GreenApiClient {
             }),
       });
       const text = await response.text();
+      signal.throwIfAborted();
       let data: unknown = null;
       if (text.trim()) {
         try {
@@ -147,17 +167,39 @@ export class GreenApiClient {
           data,
         );
       }
+      if (
+        !signal.aborted &&
+        !(action === 'receiveNotification' && data === null)
+      ) {
+        this.onResponse?.({
+          method: action,
+          data,
+          status: response.status,
+          duration: performance.now() - started,
+          error: '',
+        });
+      }
       return { data, status: response.status };
-    } catch (error) {
+    } catch (cause) {
       if (signal.aborted) throw signal.reason;
-      if (error instanceof ApiError) throw error;
-      if (timeout.aborted)
-        throw new ApiError(
-          'Сервер не ответил за 25 секунд. Проверьте соединение.',
-        );
-      throw new ApiError(
-        'Не удалось связаться с GREEN-API. Проверьте сеть и apiUrl.',
-      );
+      const error =
+        cause instanceof ApiError
+          ? cause
+          : timeout.aborted
+            ? new ApiError(
+                'Сервер не ответил за 25 секунд. Проверьте соединение.',
+              )
+            : new ApiError(
+                'Не удалось связаться с GREEN-API. Проверьте сеть и apiUrl.',
+              );
+      this.onResponse?.({
+        method: action,
+        data: error.data ?? { error: error.message },
+        status: error.status,
+        duration: performance.now() - started,
+        error: error.message,
+      });
+      throw error;
     }
   }
 
@@ -169,10 +211,27 @@ export class GreenApiClient {
     return this.request('GET', 'getStateInstance', signal);
   }
 
-  private async resolvePhone(
-    phone: string,
-    signal: AbortSignal,
-  ): Promise<string> {
+  async connect(signal: AbortSignal): Promise<void> {
+    const { data: state } = await this.getStateInstance(signal);
+    signal.throwIfAborted();
+    if (!isRecord(state) || state.stateInstance !== 'authorized') {
+      throw new ApiError(
+        'Авторизуйте MAX-инстанс в личном кабинете GREEN-API и повторите подключение.',
+      );
+    }
+    const { data: settings } = await this.getSettings(signal);
+    signal.throwIfAborted();
+    if (!isRecord(settings) || settings.typeInstance !== 'v3') {
+      throw new ApiError('Для этого чата нужен инстанс MAX (v3).');
+    }
+    if (settings.webhookUrl !== '' || settings.incomingWebhook !== 'yes') {
+      throw new ApiError(
+        'В настройках инстанса очистите webhookUrl и включите уведомления о входящих сообщениях и файлах. Подождите минуту и подключитесь снова.',
+      );
+    }
+  }
+
+  async checkAccount(phone: string, signal: AbortSignal): Promise<string> {
     const { data } = await this.request('POST', 'checkAccount', signal, {
       phoneNumber: Number(normalizePhone(phone)),
     });
@@ -199,45 +258,67 @@ export class GreenApiClient {
   }
 
   async sendMessage(
-    phone: string,
+    chatId: string,
     message: string,
     signal: AbortSignal,
-  ): Promise<ApiResponse> {
-    if (!message.trim() || message.length > 4000)
+  ): Promise<string> {
+    if (!/^\d+$/.test(chatId) || !message.trim() || message.length > 4000)
       throw new Error('Введите сообщение длиной от 1 до 4000 символов.');
-    const chatId = await this.resolvePhone(phone, signal);
     signal.throwIfAborted();
-    return this.request('POST', 'sendMessage', signal, { chatId, message });
+    const { data } = await this.request('POST', 'sendMessage', signal, {
+      chatId,
+      message,
+    });
+    if (
+      !isRecord(data) ||
+      typeof data.idMessage !== 'string' ||
+      !data.idMessage
+    ) {
+      throw new ApiError(
+        'Сервер не вернул idMessage. Проверьте доставку перед повторной отправкой.',
+      );
+    }
+    return data.idMessage;
   }
 
-  async sendFileByUrl(
-    input: SendFileInput,
-    signal: AbortSignal,
-  ): Promise<ApiResponse> {
-    const fileName = input.fileName.trim();
-    if (!/^[^/\\]+\.[^./\\\s]+$/.test(fileName))
-      throw new Error(
-        'Укажите имя файла с расширением, например document.pdf.',
-      );
-    let url: URL;
-    try {
-      url = new URL(input.urlFile.trim());
-    } catch {
-      throw new Error('Укажите прямую HTTP(S)-ссылку на файл.');
-    }
+  async receiveNotification(signal: AbortSignal): Promise<Notification | null> {
+    const { data } = await this.request(
+      'GET',
+      'receiveNotification',
+      signal,
+      undefined,
+      '?receiveTimeout=10',
+    );
+    if (data === null) return null;
     if (
-      !['http:', 'https:'].includes(url.protocol) ||
-      url.username ||
-      url.password
-    )
-      throw new Error('Укажите прямую HTTP(S)-ссылку на файл.');
-    const chatId = await this.resolvePhone(input.phone, signal);
-    signal.throwIfAborted();
-    return this.request('POST', 'sendFileByUrl', signal, {
-      chatId,
-      urlFile: input.urlFile.trim(),
-      fileName,
-    });
+      !isRecord(data) ||
+      !Number.isSafeInteger(data.receiptId) ||
+      (data.receiptId as number) < 0 ||
+      !isRecord(data.body)
+    ) {
+      throw new ApiError('Некорректный формат входящего уведомления.');
+    }
+    return { receiptId: data.receiptId as number, body: data.body };
+  }
+
+  async deleteNotification(
+    receiptId: number,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (!Number.isSafeInteger(receiptId) || receiptId < 0)
+      throw new Error('Некорректный receiptId.');
+    const { data } = await this.request(
+      'DELETE',
+      'deleteNotification',
+      signal,
+      undefined,
+      `/${receiptId}`,
+    );
+    if (!isRecord(data) || typeof data.result !== 'boolean') {
+      throw new ApiError(
+        'Не удалось подтвердить получение уведомления. Повторим автоматически.',
+      );
+    }
   }
 }
 
