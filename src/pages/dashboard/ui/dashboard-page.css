@@ -682,11 +682,11 @@
   right: 14px;
   bottom: 8px;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: flex-end;
   gap: 5px;
   font-size: 11px;
-  line-height: 21px;
+  line-height: 14px;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   color: #ffffff80;
