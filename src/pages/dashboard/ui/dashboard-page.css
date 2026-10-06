@@ -35,6 +35,11 @@
   margin-bottom: 22px;
   text-align: center;
 }
+.connection-modal fieldset,
+.connection-modal .connect-button {
+  width: min(400px, 90%);
+  margin-inline: auto;
+}
 .connection-max-brand {
   display: flex;
   align-items: center;
