@@ -4,22 +4,29 @@ export interface Credentials {
   apiTokenInstance: string;
 }
 
-export interface Notification {
-  receiptId: number;
-  body: unknown;
+export interface ApiResponse {
+  data: unknown;
+  status: number;
+}
+
+export interface SendFileInput {
+  phone: string;
+  urlFile: string;
+  fileName: string;
 }
 
 export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status?: number,
+    public readonly data?: unknown,
   ) {
     super(message);
     this.name = 'ApiError';
   }
 }
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
@@ -29,15 +36,35 @@ export function normalizePhone(value: string): string {
   }
   const digits = value.replace(/\D/g, '');
   if (!/^(7\d{10}|375\d{9})$/.test(digits)) {
-    throw new Error('MAX API поддерживает номера РФ (+7) и Беларуси (+375).');
+    throw new Error('Укажите номер РФ (+7) или Беларуси (+375) для MAX.');
   }
   return digits;
+}
+
+function redact(value: unknown, token: string): unknown {
+  const hide = (text: string) =>
+    text
+      .replaceAll(token, '[скрыто]')
+      .replaceAll(encodeURIComponent(token), '[скрыто]');
+  if (typeof value === 'string') return hide(value);
+  if (Array.isArray(value)) return value.map((item) => redact(item, token));
+  if (isRecord(value))
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        hide(key),
+        redact(item, token),
+      ]),
+    );
+  return value;
 }
 
 export class GreenApiClient {
   private readonly credentials: Credentials;
 
-  constructor(credentials: Credentials) {
+  constructor(
+    credentials: Credentials,
+    private readonly transport: typeof fetch = fetch,
+  ) {
     const idInstance = credentials.idInstance.trim();
     const apiTokenInstance = credentials.apiTokenInstance.trim();
     if (!/^\d+$/.test(idInstance) || !apiTokenInstance) {
@@ -71,17 +98,17 @@ export class GreenApiClient {
   }
 
   private async request(
-    method: string,
+    method: 'GET' | 'POST',
     action: string,
     signal: AbortSignal,
     body?: unknown,
-    suffix = '',
-  ): Promise<unknown> {
+  ): Promise<ApiResponse> {
     const { apiUrl, idInstance, apiTokenInstance } = this.credentials;
-    const url = `${apiUrl}/waInstance${idInstance}/${action}/${encodeURIComponent(apiTokenInstance)}${suffix}`;
+    const url = `${apiUrl}/waInstance${idInstance}/${action}/${encodeURIComponent(apiTokenInstance)}`;
     const timeout = AbortSignal.timeout(25_000);
+    const transport = this.transport;
     try {
-      const response = await fetch(url, {
+      const response = await transport(url, {
         method,
         signal: AbortSignal.any([signal, timeout]),
         credentials: 'omit',
@@ -101,24 +128,26 @@ export class GreenApiClient {
           data = JSON.parse(text);
         } catch {
           if (response.ok)
-            throw new ApiError('Сервер вернул некорректный JSON.');
+            throw new ApiError(
+              'Сервер вернул некорректный JSON.',
+              response.status,
+              redact(text, apiTokenInstance),
+            );
           data = text;
         }
       }
+      data = redact(data, apiTokenInstance);
       if (!response.ok) {
         const detail = isRecord(data)
-          ? (data.message ?? data.error ?? data.reason ?? text)
+          ? (data.message ?? data.error ?? data.reason)
           : data;
-        const safeDetail = String(detail ?? response.statusText)
-          .replaceAll(apiTokenInstance, '[скрыто]')
-          .replaceAll(encodeURIComponent(apiTokenInstance), '[скрыто]')
-          .slice(0, 350);
         throw new ApiError(
-          `GREEN-API: HTTP ${response.status}. ${safeDetail}`,
+          `GREEN-API: HTTP ${response.status}. ${String(detail ?? response.statusText).slice(0, 350)}`,
           response.status,
+          data,
         );
       }
-      return data;
+      return { data, status: response.status };
     } catch (error) {
       if (signal.aborted) throw signal.reason;
       if (error instanceof ApiError) throw error;
@@ -132,33 +161,26 @@ export class GreenApiClient {
     }
   }
 
-  async connect(signal: AbortSignal): Promise<void> {
-    const state = await this.request('GET', 'getStateInstance', signal);
-    if (!isRecord(state) || state.stateInstance !== 'authorized') {
-      throw new ApiError(
-        'Авторизуйте MAX-инстанс в личном кабинете GREEN-API и повторите вход.',
-      );
-    }
-    const settings = await this.request('GET', 'getSettings', signal);
-    if (!isRecord(settings) || settings.typeInstance !== 'v3') {
-      throw new ApiError(
-        'Для этого чата нужен инстанс MAX (v3), а не WhatsApp или Telegram.',
-      );
-    }
-    if (settings.webhookUrl !== '' || settings.incomingWebhook !== 'yes') {
-      throw new ApiError(
-        'В настройках инстанса очистите webhookUrl и включите «Получать уведомления о входящих сообщениях и файлах». Подождите минуту и повторите вход.',
-      );
-    }
+  getSettings(signal: AbortSignal): Promise<ApiResponse> {
+    return this.request('GET', 'getSettings', signal);
   }
 
-  async checkAccount(phone: string, signal: AbortSignal): Promise<string> {
-    const data = await this.request('POST', 'checkAccount', signal, {
+  getStateInstance(signal: AbortSignal): Promise<ApiResponse> {
+    return this.request('GET', 'getStateInstance', signal);
+  }
+
+  private async resolvePhone(
+    phone: string,
+    signal: AbortSignal,
+  ): Promise<string> {
+    const { data } = await this.request('POST', 'checkAccount', signal, {
       phoneNumber: Number(normalizePhone(phone)),
     });
     if (isRecord(data) && data.status === false) {
       throw new ApiError(
         'MAX не смог проверить номер. Проверьте авторизацию и лимиты инстанса.',
+        undefined,
+        data,
       );
     }
     if (
@@ -169,77 +191,58 @@ export class GreenApiClient {
     ) {
       throw new ApiError(
         'Аккаунт MAX по этому номеру не найден. Проверьте номер и доступность поиска получателя.',
+        undefined,
+        data,
       );
     }
     return data.chatId;
   }
 
   async sendMessage(
-    chatId: string,
+    phone: string,
     message: string,
     signal: AbortSignal,
-  ): Promise<string> {
-    if (!chatId || !message.trim() || message.length > 4000) {
-      throw new Error('Укажите чат и сообщение длиной от 1 до 4000 символов.');
-    }
-    const data = await this.request('POST', 'sendMessage', signal, {
-      chatId,
-      message,
-    });
-    if (
-      !isRecord(data) ||
-      typeof data.idMessage !== 'string' ||
-      !data.idMessage
-    ) {
-      throw new ApiError(
-        'Сервер не вернул idMessage. Проверьте доставку перед повторной отправкой.',
-      );
-    }
-    return data.idMessage;
+  ): Promise<ApiResponse> {
+    if (!message.trim() || message.length > 4000)
+      throw new Error('Введите сообщение длиной от 1 до 4000 символов.');
+    const chatId = await this.resolvePhone(phone, signal);
+    signal.throwIfAborted();
+    return this.request('POST', 'sendMessage', signal, { chatId, message });
   }
 
-  async receiveNotification(signal: AbortSignal): Promise<Notification | null> {
-    const data = await this.request(
-      'GET',
-      'receiveNotification',
-      signal,
-      undefined,
-      '?receiveTimeout=10',
-    );
-    if (data === null) return null;
-    if (
-      !isRecord(data) ||
-      typeof data.receiptId !== 'number' ||
-      !Number.isSafeInteger(data.receiptId) ||
-      data.receiptId < 0 ||
-      !isRecord(data.body)
-    ) {
-      throw new ApiError('Некорректный формат входящего уведомления.');
-    }
-    return { receiptId: data.receiptId, body: data.body };
-  }
-
-  async deleteNotification(
-    receiptId: number,
+  async sendFileByUrl(
+    input: SendFileInput,
     signal: AbortSignal,
-  ): Promise<void> {
-    const data = await this.request(
-      'DELETE',
-      'deleteNotification',
-      signal,
-      undefined,
-      `/${receiptId}`,
-    );
-    if (!isRecord(data) || typeof data.result !== 'boolean') {
-      throw new ApiError(
-        'Не удалось подтвердить получение уведомления. Повторим автоматически.',
+  ): Promise<ApiResponse> {
+    const fileName = input.fileName.trim();
+    if (!/^[^/\\]+\.[^./\\\s]+$/.test(fileName))
+      throw new Error(
+        'Укажите имя файла с расширением, например document.pdf.',
       );
+    let url: URL;
+    try {
+      url = new URL(input.urlFile.trim());
+    } catch {
+      throw new Error('Укажите прямую HTTP(S)-ссылку на файл.');
     }
+    if (
+      !['http:', 'https:'].includes(url.protocol) ||
+      url.username ||
+      url.password
+    )
+      throw new Error('Укажите прямую HTTP(S)-ссылку на файл.');
+    const chatId = await this.resolvePhone(input.phone, signal);
+    signal.throwIfAborted();
+    return this.request('POST', 'sendFileByUrl', signal, {
+      chatId,
+      urlFile: input.urlFile.trim(),
+      fileName,
+    });
   }
 }
 
 export function errorMessage(error: unknown): string {
   return error instanceof Error
     ? error.message
-    : 'Не удалось выполнить действие. Повторите попытку.';
+    : 'Не удалось выполнить запрос.';
 }
