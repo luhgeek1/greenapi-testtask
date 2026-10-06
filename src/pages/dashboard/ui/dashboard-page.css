@@ -649,34 +649,46 @@
   justify-content: flex-start;
 }
 .sent-bubble {
+  --bubble-meta-space: 64px;
+  position: relative;
   max-width: min(448px, 88%);
-  padding: 10px 16px;
+  padding: 8px 14px;
   background: var(--bubble-background);
   border: 1px solid var(--bubble-border);
-  border-radius: 16px 3px 16px 16px;
+  border-radius: 20px 20px 6px 20px;
   box-shadow: 0 5px 15px #00000020;
   font-size: 14px;
-  line-height: 1.65;
+  line-height: 1.5;
   color: white;
   animation: bubble-enter 280ms var(--ease-out) both;
 }
 .incoming-bubble {
+  --bubble-meta-space: 44px;
   background: #25262a;
   border-color: #34353a;
-  border-radius: 3px 16px 16px 16px;
+  border-radius: 6px 20px 20px 20px;
 }
 .bubble-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.bubble-text::after {
+  content: '';
+  display: inline-block;
+  width: var(--bubble-meta-space);
+}
 .bubble-meta {
+  position: absolute;
+  right: 14px;
+  bottom: 8px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 7px;
-  margin-top: 5px;
-  font-size: 9px;
-  line-height: 1.5;
+  gap: 5px;
+  font-size: 11px;
+  line-height: 21px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
   color: #ffffff80;
 }
 .sent-state {
