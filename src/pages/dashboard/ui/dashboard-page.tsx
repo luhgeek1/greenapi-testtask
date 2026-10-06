@@ -41,8 +41,11 @@ export function DashboardPage({
   const [pending, setPending] = useState<ApiMethod | null>(null);
   const [showToken, setShowToken] = useState(false);
   const [search, setSearch] = useState('');
+  const [countryCode, setCountryCode] = useState('7');
   const action = useRef<AbortController | null>(null);
   const connectionDialog = useRef<HTMLDialogElement>(null);
+  const contactDialog = useRef<HTMLDialogElement>(null);
+  const addContactButton = useRef<HTMLButtonElement>(null);
   const stream = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const phoneInput = useRef<HTMLInputElement>(null);
@@ -66,26 +69,35 @@ export function DashboardPage({
     credentials.idInstance.trim() &&
     credentials.apiTokenInstance.trim() &&
     credentials.apiUrl.trim();
+  const nationalPhone = createChat.phone.startsWith(`+${countryCode}`)
+    ? createChat.phone.slice(countryCode.length + 1).trimStart()
+    : createChat.phone;
 
   useEffect(() => () => action.current?.abort(), []);
   useEffect(() => {
-    const dialog = connectionDialog.current;
-    if (!dialog || client) return;
+    const dialog = !client
+      ? connectionDialog.current
+      : workspace.showNewChat
+        ? contactDialog.current
+        : null;
+    if (!dialog) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     dialog.showModal();
     dialog.scrollTop = 0;
+    if (client) phoneInput.current?.focus();
     return () => {
       dialog.close();
       document.body.style.overflow = previousOverflow;
     };
-  }, [client]);
+  }, [client, workspace.showNewChat]);
   useEffect(() => {
     if (stream.current) stream.current.scrollTop = stream.current.scrollHeight;
   }, [active?.id, lastMessage?.id]);
   useEffect(() => {
     if (client && workspace.showNewChat) phoneInput.current?.focus();
-    else if (active) composer.current?.focus();
+    else if (client && active) composer.current?.focus();
+    else if (client) addContactButton.current?.focus();
   }, [client, workspace.showNewChat, active?.id]);
 
   useEffect(() => {
@@ -157,6 +169,29 @@ export function DashboardPage({
     void createChat.onCreate();
   }
 
+  function openContactSearch() {
+    setSearch('');
+    setCountryCode('7');
+    workspace.openNewChat();
+  }
+
+  function changePhone(value: string) {
+    const digits = value.replace(/\D/g, '');
+    if (value.trimStart().startsWith('+')) {
+      if (digits.startsWith('375')) setCountryCode('375');
+      else if (digits.startsWith('7')) setCountryCode('7');
+      createChat.onPhoneChange(value.trimStart());
+    } else if (digits.length === 12 && digits.startsWith('375')) {
+      setCountryCode('375');
+      createChat.onPhoneChange(`+375 ${digits.slice(3)}`);
+    } else if (digits.length === 11 && /^[78]/.test(digits)) {
+      setCountryCode('7');
+      createChat.onPhoneChange(`+7 ${digits.slice(1)}`);
+    } else {
+      createChat.onPhoneChange(value.trim() ? `+${countryCode} ${value}` : '');
+    }
+  }
+
   function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void workspace.sendMessage(workspace.draft);
@@ -174,10 +209,10 @@ export function DashboardPage({
     }
   }
 
-  function connectionKeyDown(event: KeyboardEvent<HTMLDialogElement>) {
+  function modalKeyDown(event: KeyboardEvent<HTMLDialogElement>) {
     if (event.key !== 'Tab') return;
     const controls = event.currentTarget.querySelectorAll<HTMLElement>(
-      'input:enabled, button:enabled',
+      'input:enabled, button:enabled, select:enabled',
     );
     const first = controls[0];
     const last = controls[controls.length - 1];
@@ -199,7 +234,7 @@ export function DashboardPage({
         aria-labelledby="connection-title"
         aria-describedby="connection-description"
         onCancel={(event) => event.preventDefault()}
-        onKeyDown={connectionKeyDown}
+        onKeyDown={modalKeyDown}
       >
         <header className="connection-modal-header">
           <div className="connection-max-brand" aria-hidden="true">
@@ -304,6 +339,89 @@ export function DashboardPage({
           Токен хранится только в этой вкладке
         </p>
       </dialog>
+      <dialog
+        ref={contactDialog}
+        className="contact-modal"
+        aria-labelledby="contact-search-title"
+        onKeyDown={modalKeyDown}
+        onCancel={(event) => {
+          event.preventDefault();
+          workspace.closeNewChat();
+        }}
+        onClick={(event) => {
+          if (event.target !== event.currentTarget) return;
+          const bounds = event.currentTarget.getBoundingClientRect();
+          if (
+            event.clientX < bounds.left ||
+            event.clientX > bounds.right ||
+            event.clientY < bounds.top ||
+            event.clientY > bounds.bottom
+          )
+            workspace.closeNewChat();
+        }}
+      >
+        <h2 id="contact-search-title">Найти по номеру</h2>
+        <button
+          type="button"
+          className="contact-modal-close"
+          aria-label="Закрыть поиск"
+          onClick={workspace.closeNewChat}
+        >
+          <Icon name="close" />
+        </button>
+        <form onSubmit={newChat} aria-label="Добавление контакта">
+          <div className="contact-phone-field">
+            <div className="contact-country">
+              <span aria-hidden="true">
+                <span>{countryCode === '7' ? '🇷🇺' : '🇧🇾'}</span>+{countryCode}
+                <Icon name="back" />
+              </span>
+              <select
+                aria-label="Страна"
+                value={countryCode}
+                disabled={createChat.busy}
+                onChange={(event) => {
+                  const code = event.target.value;
+                  setCountryCode(code);
+                  createChat.onPhoneChange(
+                    nationalPhone.trim() ? `+${code} ${nationalPhone}` : '',
+                  );
+                  phoneInput.current?.focus();
+                }}
+              >
+                <option value="7">Россия (+7)</option>
+                <option value="375">Беларусь (+375)</option>
+              </select>
+            </div>
+            <input
+              ref={phoneInput}
+              aria-label="Телефон получателя"
+              type="tel"
+              inputMode="tel"
+              required
+              autoComplete="off"
+              placeholder={
+                countryCode === '7' ? '123 456 78 90' : '29 123 45 67'
+              }
+              value={nationalPhone}
+              disabled={createChat.busy}
+              onChange={(event) => changePhone(event.target.value)}
+            />
+          </div>
+          <button
+            className="primary-button contact-search-button"
+            disabled={createChat.busy || !nationalPhone.trim()}
+          >
+            {createChat.busy && <span className="spinner" />}
+            {createChat.busy ? 'Ищем…' : 'Найти в MAX'}
+          </button>
+          {createChat.error && (
+            <p className="connection-error" role="alert">
+              {createChat.error}
+            </p>
+          )}
+        </form>
+      </dialog>
       <aside className="client-sidebar" aria-label="Подключение и чаты">
         <div className="sidebar-content">
           <header className="sidebar-brand">
@@ -359,15 +477,13 @@ export function DashboardPage({
                 )}
               </h2>
               <button
+                ref={addContactButton}
                 type="button"
                 className="new-chat-button"
                 aria-label="Добавить новый контакт"
                 title="Добавить контакт по номеру телефона"
                 disabled={!client}
-                onClick={() => {
-                  setSearch('');
-                  workspace.openNewChat();
-                }}
+                onClick={openContactSearch}
               >
                 <Icon name="plus" />
               </button>
@@ -388,14 +504,10 @@ export function DashboardPage({
                 return (
                   <button
                     type="button"
-                    className={`chat-list-item ${active?.id === chat.id && !workspace.showNewChat ? 'is-active' : ''}`}
+                    className={`chat-list-item ${active?.id === chat.id ? 'is-active' : ''}`}
                     key={chat.id}
                     aria-label={`Чат ${chat.title}`}
-                    aria-current={
-                      active?.id === chat.id && !workspace.showNewChat
-                        ? 'page'
-                        : undefined
-                    }
+                    aria-current={active?.id === chat.id ? 'page' : undefined}
                     onClick={() => {
                       workspace.selectChat(chat.id);
                     }}
@@ -488,14 +600,8 @@ export function DashboardPage({
               <span>MAX Messenger</span>
             </div>
             <div className="contact-pill">
-              <Icon
-                name={active && !workspace.showNewChat ? 'phone' : 'chat'}
-              />
-              <span>
-                {active && !workspace.showNewChat
-                  ? active.title
-                  : 'Новый контакт'}
-              </span>
+              <Icon name={active ? 'phone' : 'chat'} />
+              <span>{active ? active.title : 'Выберите контакт'}</span>
             </div>
             <span
               className={`connection-indicator ${client && !receiving.error ? 'online' : ''}`}
@@ -541,65 +647,20 @@ export function DashboardPage({
                   : 'Номер получателя · текст · настоящий ответ'}
               </span>
             </div>
-          ) : workspace.showNewChat || !active ? (
-            <div className="chat-empty">
-              <form
-                className="new-chat-card"
-                onSubmit={newChat}
-                aria-label="Добавление контакта"
+          ) : !active ? (
+            <div className="chat-empty welcome-state">
+              <span className="welcome-icon">
+                <Icon name="chat" />
+              </span>
+              <h2>Чаты MAX</h2>
+              <p>Выберите чат или найдите контакт по номеру телефона.</p>
+              <button
+                type="button"
+                className="primary-button contact-search-launch"
+                onClick={openContactSearch}
               >
-                <span className="welcome-icon">
-                  <Icon name="plus" />
-                </span>
-                <h2>Новый контакт</h2>
-                <p>Введите номер телефона в MAX</p>
-                <div className="recipient-field">
-                  <Icon name="phone" />
-                  <input
-                    ref={phoneInput}
-                    aria-label="Телефон получателя"
-                    type="tel"
-                    required
-                    autoComplete="off"
-                    placeholder="+7 999 123-45-67"
-                    value={createChat.phone}
-                    disabled={createChat.busy}
-                    onChange={(event) =>
-                      createChat.onPhoneChange(event.target.value)
-                    }
-                  />
-                </div>
-                <button
-                  className="primary-button"
-                  disabled={createChat.busy || !createChat.phone.trim()}
-                >
-                  {createChat.busy ? (
-                    <span className="spinner" />
-                  ) : (
-                    <Icon name="plus" />
-                  )}
-                  {createChat.busy ? 'Проверяем номер…' : 'Добавить контакт'}
-                </button>
-                {active && (
-                  <button
-                    type="button"
-                    className="cancel-contact-button"
-                    onClick={workspace.closeNewChat}
-                  >
-                    Отмена
-                  </button>
-                )}
-                {createChat.error && (
-                  <p className="connection-error" role="alert">
-                    {createChat.error}
-                  </p>
-                )}
-                <span className="welcome-caption">
-                  {demo
-                    ? 'Демонстрационные номера: +7 999 123-45-67 и +375 29 123-45-67'
-                    : 'Поддерживаются номера РФ (+7) и Беларуси (+375)'}
-                </span>
-              </form>
+                Найти по номеру
+              </button>
             </div>
           ) : (
             <>

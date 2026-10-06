@@ -13,7 +13,7 @@ import { errorMessage, type GreenApiClient } from '@/shared/api';
 export function useChatWorkspace(client: GreenApiClient | null, demo: boolean) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [showNewChat, setShowNewChat] = useState(true);
+  const [showNewChat, setShowNewChat] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [sendError, setSendError] = useState<{
     chatId: string;
@@ -30,7 +30,7 @@ export function useChatWorkspace(client: GreenApiClient | null, demo: boolean) {
     setChats([]);
     setDrafts({});
     setSendError(null);
-    setShowNewChat(true);
+    setShowNewChat(false);
   }, [client]);
 
   const selectChat = useCallback((id: string) => {
@@ -141,6 +141,7 @@ export function useChatWorkspace(client: GreenApiClient | null, demo: boolean) {
     closeNewChat: () => {
       createChat.onReset();
       if (activeId) selectChat(activeId);
+      else setShowNewChat(false);
     },
     draft: activeId ? (drafts[activeId] ?? '') : '',
     busy: activeId !== null && sending.pendingIds.includes(activeId),
