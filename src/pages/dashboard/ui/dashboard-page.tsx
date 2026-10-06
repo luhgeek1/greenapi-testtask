@@ -19,7 +19,13 @@ interface SentItem {
   time: string;
 }
 
-export function DashboardPage({ demo }: { demo: boolean }) {
+export function DashboardPage({
+  demo,
+  onModeChange,
+}: {
+  demo: boolean;
+  onModeChange: () => void;
+}) {
   const [credentials, setCredentials] = useState<Credentials>(() =>
     demo
       ? { ...demoCredentials }
@@ -129,10 +135,6 @@ export function DashboardPage({ demo }: { demo: boolean }) {
               <Icon name="settings" />
               <span>Connection</span>
             </h2>
-            <a className="mode-switch" href={demo ? '/' : '/?demo=1'}>
-              {demo ? 'Перейти к реальному API' : 'Открыть демо'}
-              <Icon name="arrow" />
-            </a>
             <fieldset disabled={Boolean(pending)}>
               <div className="field">
                 <label htmlFor="idInstance">idInstance</label>
@@ -191,6 +193,15 @@ export function DashboardPage({ demo }: { demo: boolean }) {
                 />
               </div>
             </fieldset>
+            <button
+              type="button"
+              className="mode-switch"
+              onClick={onModeChange}
+              disabled={Boolean(pending)}
+            >
+              {demo ? 'Перейти к реальному API' : 'Открыть демо'}
+              <Icon name="arrow" />
+            </button>
           </section>
           <section className="methods-section" aria-labelledby="methods-title">
             <h2 id="methods-title" className="sidebar-heading">
