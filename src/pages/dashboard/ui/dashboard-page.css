@@ -187,9 +187,6 @@
   text-transform: uppercase;
   letter-spacing: 1.1px;
 }
-.api-diagnostics > summary::-webkit-details-marker {
-  display: none;
-}
 .sidebar-heading svg {
   width: 14px;
   height: 14px;
@@ -459,7 +456,7 @@
   margin-top: auto;
   flex-shrink: 0;
 }
-.sidebar-footer > p {
+.api-privacy {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -468,7 +465,7 @@
   color: var(--subtle);
   margin-top: 14px;
 }
-.sidebar-footer > p svg {
+.api-privacy svg {
   width: 11px;
   height: 11px;
 }
@@ -476,21 +473,17 @@
   border-top: 1px solid var(--border);
   padding-top: 12px;
 }
-.api-diagnostics > summary {
+.diagnostics-heading {
   display: flex;
   align-items: center;
   gap: 7px;
-  list-style: none;
   font-size: 11px;
+  font-weight: 400;
   color: var(--subtle);
-  cursor: pointer;
 }
-.api-diagnostics > summary svg {
+.diagnostics-heading svg {
   width: 14px;
   height: 14px;
-}
-.api-diagnostics > summary > span {
-  margin-left: auto;
 }
 .method-button {
   width: 100%;
@@ -1017,7 +1010,7 @@
   .sidebar-footer {
     margin-top: 0;
   }
-  .sidebar-footer > p {
+  .api-privacy {
     display: none;
   }
   .client-main {

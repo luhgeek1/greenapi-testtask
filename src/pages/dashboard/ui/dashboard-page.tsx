@@ -314,37 +314,35 @@ export function DashboardPage({
             {demo && <span className="demo-badge">DEMO</span>}
           </header>
           <section
-            className="connection-section"
-            aria-label="GREEN-API Connection"
+            className="api-diagnostics"
+            aria-labelledby="diagnostics-title"
           >
-            <h2 className="sidebar-heading">
-              <Icon name="connection" />
-              <span>Connection</span>
+            <h2 className="diagnostics-heading" id="diagnostics-title">
+              <Icon name="code" />
+              Диагностика API
             </h2>
-            <div className="session-summary">
-              <span className={`session-status ${client ? '' : 'is-offline'}`}>
-                <i />
-                {client
-                  ? `Инстанс ${credentials.idInstance}`
-                  : 'Ожидание подключения'}
-              </span>
-              {client && (
-                <button
-                  type="button"
-                  className="icon-button"
-                  onClick={disconnect}
-                  aria-label="Отключиться"
-                  title="Отключиться"
-                >
-                  <Icon name="logout" />
-                </button>
-              )}
-            </div>
-            {client && connectionError && (
-              <p className="connection-error" role="alert">
-                {connectionError}
-              </p>
-            )}
+            <button
+              type="button"
+              className="method-button settings-button"
+              disabled={connecting || Boolean(pending)}
+              onClick={() => void diagnose('getSettings')}
+            >
+              <Icon name="server" />
+              getSettings
+            </button>
+            <button
+              type="button"
+              className="method-button state-button"
+              disabled={connecting || Boolean(pending)}
+              onClick={() => void diagnose('getStateInstance')}
+            >
+              <Icon name="server" />
+              getStateInstance
+            </button>
+            <p className="api-privacy">
+              <Icon name="lock" />
+              Токен хранится только в этой вкладке
+            </p>
           </section>
           <section className="chats-section" aria-labelledby="chats-title">
             <div className="chats-heading">
@@ -442,34 +440,41 @@ export function DashboardPage({
             </nav>
           </section>
           <footer className="sidebar-footer">
-            <details className="api-diagnostics">
-              <summary>
-                <Icon name="code" />
-                Диагностика API<span>›</span>
-              </summary>
-              <button
-                type="button"
-                className="method-button settings-button"
-                disabled={connecting || Boolean(pending)}
-                onClick={() => void diagnose('getSettings')}
-              >
-                <Icon name="server" />
-                getSettings
-              </button>
-              <button
-                type="button"
-                className="method-button state-button"
-                disabled={connecting || Boolean(pending)}
-                onClick={() => void diagnose('getStateInstance')}
-              >
-                <Icon name="server" />
-                getStateInstance
-              </button>
-            </details>
-            <p>
-              <Icon name="lock" />
-              Токен хранится только в этой вкладке
-            </p>
+            <section
+              className="connection-section"
+              aria-label="GREEN-API Connection"
+            >
+              <h2 className="sidebar-heading">
+                <Icon name="connection" />
+                <span>Connection</span>
+              </h2>
+              <div className="session-summary">
+                <span
+                  className={`session-status ${client ? '' : 'is-offline'}`}
+                >
+                  <i />
+                  {client
+                    ? `Инстанс ${credentials.idInstance}`
+                    : 'Ожидание подключения'}
+                </span>
+                {client && (
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={disconnect}
+                    aria-label="Отключиться"
+                    title="Отключиться"
+                  >
+                    <Icon name="logout" />
+                  </button>
+                )}
+              </div>
+              {client && connectionError && (
+                <p className="connection-error" role="alert">
+                  {connectionError}
+                </p>
+              )}
+            </section>
           </footer>
         </div>
       </aside>
