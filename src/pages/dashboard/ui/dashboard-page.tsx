@@ -42,6 +42,7 @@ export function DashboardPage({
   const [showToken, setShowToken] = useState(false);
   const [search, setSearch] = useState('');
   const action = useRef<AbortController | null>(null);
+  const connectionDialog = useRef<HTMLDialogElement>(null);
   const stream = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const phoneInput = useRef<HTMLInputElement>(null);
@@ -63,6 +64,18 @@ export function DashboardPage({
   const unread = workspace.chats.reduce((sum, chat) => sum + chat.unread, 0);
 
   useEffect(() => () => action.current?.abort(), []);
+  useEffect(() => {
+    const dialog = connectionDialog.current;
+    if (!dialog || client) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialog.showModal();
+    dialog.scrollTop = 0;
+    return () => {
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [client]);
   useEffect(() => {
     if (stream.current) stream.current.scrollTop = stream.current.scrollHeight;
   }, [active?.id, lastMessage?.id]);
@@ -108,6 +121,7 @@ export function DashboardPage({
     setPending(null);
     setConnecting(false);
     setClient(null);
+    setConnectionError('');
     setShowToken(false);
     setSearch('');
     clear();
@@ -155,8 +169,136 @@ export function DashboardPage({
     }
   }
 
+  function connectionKeyDown(event: KeyboardEvent<HTMLDialogElement>) {
+    if (event.key !== 'Tab') return;
+    const controls = event.currentTarget.querySelectorAll<HTMLElement>(
+      'input:enabled, button:enabled',
+    );
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (!first || !last) {
+      event.preventDefault();
+      return;
+    }
+    if (document.activeElement === (event.shiftKey ? first : last)) {
+      event.preventDefault();
+      (event.shiftKey ? last : first).focus();
+    }
+  }
+
   return (
     <div className={`dashboard-page ${client ? 'is-connected' : ''}`}>
+      <dialog
+        ref={connectionDialog}
+        className="connection-modal"
+        aria-labelledby="connection-title"
+        aria-describedby="connection-description"
+        onCancel={(event) => event.preventDefault()}
+        onKeyDown={connectionKeyDown}
+      >
+        <header className="connection-modal-header">
+          <span className="connection-modal-icon" aria-hidden="true">
+            <Icon name="connection" />
+          </span>
+          <p className="connection-eyebrow">GREEN-API Connection</p>
+          <h2 id="connection-title">Подключение к MAX</h2>
+          <p id="connection-description">
+            {demo
+              ? 'Демо готово к запуску. Данные уже заполнены.'
+              : 'Введите данные инстанса, чтобы открыть чаты.'}
+          </p>
+        </header>
+        <form onSubmit={(event) => void connect(event)}>
+          <fieldset
+            disabled={connecting || Boolean(pending) || Boolean(client)}
+          >
+            <div className="field">
+              <label htmlFor="idInstance">idInstance</label>
+              <input
+                id="idInstance"
+                inputMode="numeric"
+                pattern="[0-9]+"
+                required
+                autoComplete="off"
+                placeholder="idInstance"
+                value={credentials.idInstance}
+                onChange={(event) =>
+                  updateCredential('idInstance', event.target.value)
+                }
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="apiTokenInstance">apiTokenInstance</label>
+              <div className="token-field">
+                <input
+                  id="apiTokenInstance"
+                  type={showToken ? 'text' : 'password'}
+                  required
+                  autoComplete="off"
+                  placeholder="apiTokenInstance"
+                  value={credentials.apiTokenInstance}
+                  onChange={(event) =>
+                    updateCredential('apiTokenInstance', event.target.value)
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowToken((value) => !value)}
+                  aria-label={showToken ? 'Скрыть токен' : 'Показать токен'}
+                  aria-pressed={showToken}
+                >
+                  <Icon name={showToken ? 'eyeOff' : 'eye'} />
+                </button>
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="apiUrl">apiUrl</label>
+              <input
+                id="apiUrl"
+                type="url"
+                required
+                autoComplete="off"
+                placeholder="https://3100.api.green-api.com"
+                value={credentials.apiUrl}
+                onChange={(event) =>
+                  updateCredential('apiUrl', event.target.value)
+                }
+              />
+            </div>
+          </fieldset>
+          <button
+            type="button"
+            className="mode-switch"
+            onClick={onModeChange}
+            disabled={connecting || Boolean(pending)}
+          >
+            {demo ? 'Перейти к реальному API' : 'Открыть демо'}
+            <Icon name="arrow" />
+          </button>
+          {!client && (
+            <button
+              className="primary-button connect-button"
+              disabled={connecting || Boolean(pending)}
+            >
+              {connecting ? (
+                <span className="spinner" />
+              ) : (
+                <Icon name="connection" />
+              )}
+              {connecting ? 'Подключаемся…' : 'Подключиться'}
+            </button>
+          )}
+        </form>
+        {!client && connectionError && (
+          <p className="connection-error" role="alert">
+            {connectionError}
+          </p>
+        )}
+        <p className="connection-privacy">
+          <Icon name="lock" />
+          Токен хранится только в этой вкладке
+        </p>
+      </dialog>
       <aside className="client-sidebar" aria-label="Подключение и чаты">
         <div className="sidebar-content">
           <header className="sidebar-brand">
@@ -171,105 +313,18 @@ export function DashboardPage({
             className="connection-section"
             aria-label="GREEN-API Connection"
           >
-            <details className="connection-details" open={!client}>
-              <summary className="sidebar-heading">
-                <Icon name="settings" />
-                <span>Connection</span>
-                <span className="connection-chevron">›</span>
-              </summary>
-              <form onSubmit={(event) => void connect(event)}>
-                <fieldset
-                  disabled={connecting || Boolean(pending) || Boolean(client)}
-                >
-                  <div className="field">
-                    <label htmlFor="idInstance">idInstance</label>
-                    <input
-                      id="idInstance"
-                      inputMode="numeric"
-                      pattern="[0-9]+"
-                      required
-                      autoComplete="off"
-                      placeholder="idInstance"
-                      value={credentials.idInstance}
-                      onChange={(event) =>
-                        updateCredential('idInstance', event.target.value)
-                      }
-                    />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="apiTokenInstance">apiTokenInstance</label>
-                    <div className="token-field">
-                      <input
-                        id="apiTokenInstance"
-                        type={showToken ? 'text' : 'password'}
-                        required
-                        autoComplete="off"
-                        placeholder="apiTokenInstance"
-                        value={credentials.apiTokenInstance}
-                        onChange={(event) =>
-                          updateCredential(
-                            'apiTokenInstance',
-                            event.target.value,
-                          )
-                        }
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowToken((value) => !value)}
-                        aria-label={
-                          showToken ? 'Скрыть токен' : 'Показать токен'
-                        }
-                        aria-pressed={showToken}
-                      >
-                        <Icon name={showToken ? 'eyeOff' : 'eye'} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="field">
-                    <label htmlFor="apiUrl">apiUrl</label>
-                    <input
-                      id="apiUrl"
-                      type="url"
-                      required
-                      autoComplete="off"
-                      placeholder="https://3100.api.green-api.com"
-                      value={credentials.apiUrl}
-                      onChange={(event) =>
-                        updateCredential('apiUrl', event.target.value)
-                      }
-                    />
-                  </div>
-                </fieldset>
-                <button
-                  type="button"
-                  className="mode-switch"
-                  onClick={onModeChange}
-                  disabled={connecting || Boolean(pending)}
-                >
-                  {demo ? 'Перейти к реальному API' : 'Открыть демо'}
-                  <Icon name="arrow" />
-                </button>
-                {!client && (
-                  <button
-                    className="primary-button connect-button"
-                    disabled={connecting || Boolean(pending)}
-                  >
-                    {connecting ? (
-                      <span className="spinner" />
-                    ) : (
-                      <Icon name="connection" />
-                    )}
-                    {connecting ? 'Подключаемся…' : 'Подключиться'}
-                  </button>
-                )}
-              </form>
-            </details>
-            {client && (
-              <div className="session-summary">
-                <span className="session-status">
-                  <i />
-                  Инстанс {credentials.idInstance}
-                </span>
+            <h2 className="sidebar-heading">
+              <Icon name="connection" />
+              <span>Connection</span>
+            </h2>
+            <div className="session-summary">
+              <span className={`session-status ${client ? '' : 'is-offline'}`}>
+                <i />
+                {client
+                  ? `Инстанс ${credentials.idInstance}`
+                  : 'Ожидание подключения'}
+              </span>
+              {client && (
                 <button
                   type="button"
                   className="icon-button"
@@ -279,9 +334,9 @@ export function DashboardPage({
                 >
                   <Icon name="logout" />
                 </button>
-              </div>
-            )}
-            {connectionError && (
+              )}
+            </div>
+            {client && connectionError && (
               <p className="connection-error" role="alert">
                 {connectionError}
               </p>
