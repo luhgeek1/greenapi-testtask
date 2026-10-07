@@ -688,7 +688,7 @@
   animation: connection-enter 220ms var(--ease-out) both;
 }
 .contact-modal::backdrop {
-  background: #00000030;
+  background: #08090cb3;
   animation: fade-in 180ms both;
 }
 .contact-modal h2 {
