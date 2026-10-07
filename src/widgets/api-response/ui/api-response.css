@@ -24,11 +24,42 @@
   min-height: 24px;
 }
 .terminal-header h2 {
+  margin-right: auto;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1.1px;
   white-space: nowrap;
+}
+.terminal-methods {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.terminal-method-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--field);
+  font: 11px/16px var(--mono);
+  white-space: nowrap;
+}
+.terminal-method-button svg,
+.terminal-method-button .spinner {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  color: var(--accent-light);
+}
+.terminal-method-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--surface-hover);
 }
 .terminal-tools {
   display: flex;
@@ -165,6 +196,23 @@
     opacity: 0.25;
   }
 }
+@media (max-width: 1100px) {
+  .terminal-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    padding-bottom: 10px;
+  }
+  .terminal-header h2 {
+    grid-area: 1 / 1;
+  }
+  .terminal-tools {
+    grid-area: 1 / 2;
+  }
+  .terminal-methods {
+    grid-area: 2 / 1 / 3 / -1;
+  }
+}
 @media (max-width: 700px) {
   .response-panel {
     height: 220px;
@@ -182,10 +230,16 @@
   .terminal-tools {
     gap: 2px;
   }
+  .terminal-method-button {
+    flex: 1;
+    min-width: 0;
+    padding-inline: 6px;
+    font-size: 10px;
+  }
   .request-status {
     font-size: 8px;
     margin-right: 2px;
-    max-width: 120px;
+    max-width: 72px;
     white-space: normal;
   }
   .json-output {

@@ -29,11 +29,15 @@ export function ApiResponsePanel({
   result,
   history,
   pending,
+  diagnosticsDisabled,
+  onDiagnose,
   onClear,
 }: {
   result: RequestResult | null;
   history: RequestResult[];
   pending: ApiMethod | null;
+  diagnosticsDisabled: boolean;
+  onDiagnose: (method: 'getSettings' | 'getStateInstance') => void;
   onClear: () => void;
 }) {
   const [copiedText, setCopiedText] = useState('');
@@ -75,6 +79,29 @@ export function ApiResponsePanel({
         <h2 id="response-title" aria-label="API Response">
           API Terminal Logs
         </h2>
+        <div
+          className="terminal-methods"
+          role="group"
+          aria-label="Диагностика API"
+        >
+          {(['getSettings', 'getStateInstance'] as const).map((method) => (
+            <button
+              key={method}
+              type="button"
+              className="terminal-method-button"
+              disabled={diagnosticsDisabled || Boolean(pending)}
+              aria-busy={pending === method}
+              onClick={() => onDiagnose(method)}
+            >
+              {pending === method ? (
+                <span className="spinner" />
+              ) : (
+                <Icon name="server" />
+              )}
+              {method}
+            </button>
+          ))}
+        </div>
         <div className="terminal-tools">
           <span
             className={`request-status ${result?.error ? 'error' : result ? 'success' : ''}`}

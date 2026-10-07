@@ -432,37 +432,6 @@ export function DashboardPage({
             <h1>MAX Client</h1>
             {demo && <span className="demo-badge">DEMO</span>}
           </header>
-          <section
-            className="api-diagnostics"
-            aria-labelledby="diagnostics-title"
-          >
-            <h2 className="diagnostics-heading" id="diagnostics-title">
-              <Icon name="code" />
-              Диагностика API
-            </h2>
-            <button
-              type="button"
-              className="method-button settings-button"
-              disabled={connecting || Boolean(pending)}
-              onClick={() => void diagnose('getSettings')}
-            >
-              <Icon name="server" />
-              getSettings
-            </button>
-            <button
-              type="button"
-              className="method-button state-button"
-              disabled={connecting || Boolean(pending)}
-              onClick={() => void diagnose('getStateInstance')}
-            >
-              <Icon name="server" />
-              getStateInstance
-            </button>
-            <p className="api-privacy">
-              <Icon name="lock" />
-              Токен хранится только в этой вкладке
-            </p>
-          </section>
           <section className="chats-section" aria-labelledby="chats-title">
             <div className="chats-heading">
               <h2 id="chats-title">
@@ -764,6 +733,8 @@ export function DashboardPage({
           result={result}
           history={history}
           pending={pending}
+          diagnosticsDisabled={connecting}
+          onDiagnose={(method) => void diagnose(method)}
           onClear={clear}
         />
       </main>
