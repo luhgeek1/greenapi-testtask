@@ -25,6 +25,73 @@ function highlight(line: string) {
     });
 }
 
+function ApiResponseEntry({
+  entry,
+  latest,
+  onExpand,
+}: {
+  entry: RequestResult;
+  latest: boolean;
+  onExpand: (element: HTMLElement) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const element = useRef<HTMLDivElement>(null);
+  return (
+    <div
+      className={`terminal-entry ${entry.error ? 'has-error' : ''}`}
+      ref={element}
+    >
+      <div className="terminal-command">
+        <span className="terminal-prompt" aria-hidden="true">
+          &gt;
+        </span>
+        <span className="terminal-method">{entry.method}</span>
+        <span
+          className={
+            entry.error ? 'terminal-error-code' : 'terminal-success-code'
+          }
+        >
+          {entry.status ?? 'ERROR'}
+        </span>
+      </div>
+      <details
+        className="terminal-response"
+        onToggle={(event) => {
+          setExpanded(event.currentTarget.open);
+          if (event.currentTarget.open && element.current)
+            onExpand(element.current);
+        }}
+      >
+        <summary
+          className="terminal-toggle"
+          role="button"
+          aria-expanded={expanded}
+          aria-label={`Ответ ${entry.method}`}
+          title={expanded ? 'Скрыть ответ' : 'Раскрыть ответ'}
+        >
+          <Icon name="back" className="terminal-toggle-icon" />
+        </summary>
+        <pre
+          className="json-output"
+          aria-label={latest ? 'Тело ответа API' : undefined}
+        >
+          <code>
+            {JSON.stringify(entry.data, null, 2)
+              .split('\n')
+              .map((line, lineIndex) => (
+                <span className="code-line" key={lineIndex}>
+                  {highlight(line)}
+                  {'\n'}
+                </span>
+              ))}
+          </code>
+        </pre>
+      </details>
+      {latest && entry.error && <p className="response-error">{entry.error}</p>}
+    </div>
+  );
+}
+
 export function ApiResponsePanel({
   result,
   history,
@@ -50,6 +117,19 @@ export function ApiResponsePanel({
     if (panel && !panel.querySelector('details[open]'))
       panel.scrollTop = panel.scrollHeight;
   }, [history, pending]);
+
+  function scrollToExpanded(element: HTMLElement) {
+    const panel = content.current;
+    if (!panel) return;
+    const visible = panel.getBoundingClientRect();
+    const expanded = element.getBoundingClientRect();
+    if (expanded.bottom > visible.bottom) {
+      panel.scrollTop += Math.min(
+        expanded.bottom - visible.bottom,
+        Math.max(0, expanded.top - visible.top),
+      );
+    }
+  }
 
   async function copy() {
     setCopyError('');
@@ -156,60 +236,12 @@ export function ApiResponsePanel({
       >
         {history.length === 0 && <p className="terminal-ready">&gt; Ready.</p>}
         {history.map((entry) => (
-          <div
-            className={`terminal-entry ${entry.error ? 'has-error' : ''}`}
+          <ApiResponseEntry
             key={entry.id}
-          >
-            <details
-              className="terminal-response"
-              onToggle={(event) => {
-                const panel = content.current;
-                if (!panel || !event.currentTarget.open) return;
-                const visible = panel.getBoundingClientRect();
-                const expanded = event.currentTarget.getBoundingClientRect();
-                if (expanded.bottom > visible.bottom) {
-                  panel.scrollTop += Math.min(
-                    expanded.bottom - visible.bottom,
-                    Math.max(0, expanded.top - visible.top),
-                  );
-                }
-              }}
-            >
-              <summary className="terminal-command">
-                <span className="terminal-chevron" aria-hidden="true">
-                  &gt;
-                </span>
-                <span className="terminal-method">{entry.method}</span>
-                <span
-                  className={
-                    entry.error
-                      ? 'terminal-error-code'
-                      : 'terminal-success-code'
-                  }
-                >
-                  {entry.status ?? 'ERROR'}
-                </span>
-              </summary>
-              <pre
-                className="json-output"
-                aria-label={entry === result ? 'Тело ответа API' : undefined}
-              >
-                <code>
-                  {JSON.stringify(entry.data, null, 2)
-                    .split('\n')
-                    .map((line, lineIndex) => (
-                      <span className="code-line" key={lineIndex}>
-                        {highlight(line)}
-                        {'\n'}
-                      </span>
-                    ))}
-                </code>
-              </pre>
-            </details>
-            {entry === result && entry.error && (
-              <p className="response-error">{entry.error}</p>
-            )}
-          </div>
+            entry={entry}
+            latest={entry === result}
+            onExpand={scrollToExpanded}
+          />
         ))}
         {pending && (
           <p className="terminal-pending">

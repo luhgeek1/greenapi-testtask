@@ -103,6 +103,7 @@
   padding-block: 2px;
 }
 .terminal-entry {
+  position: relative;
   margin-bottom: 10px;
   animation: fade-up 180ms var(--ease-out) both;
 }
@@ -113,32 +114,47 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  width: fit-content;
-  max-width: 100%;
-  padding: 2px 4px;
+  min-height: 28px;
+  padding: 2px 36px 2px 4px;
   border-radius: 4px;
   color: var(--muted);
-  cursor: pointer;
+}
+.terminal-toggle {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--muted);
   list-style: none;
+  cursor: pointer;
   transition: background-color 160ms ease;
 }
-.terminal-command::-webkit-details-marker {
+.terminal-toggle::-webkit-details-marker {
   display: none;
 }
-.terminal-command:hover {
+.terminal-toggle:hover {
   background: #ffffff08;
 }
-.terminal-command:focus-visible {
+.terminal-toggle:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
-.terminal-chevron {
+.terminal-prompt {
   display: inline-block;
   flex-shrink: 0;
+}
+.terminal-toggle-icon {
+  width: 14px;
+  height: 14px;
+  transform: rotate(180deg);
   transition: transform 180ms var(--ease-out);
 }
-.terminal-response[open] .terminal-chevron {
-  transform: rotate(90deg);
+.terminal-response[open] .terminal-toggle-icon {
+  transform: rotate(270deg);
 }
 .terminal-method {
   color: var(--text);
