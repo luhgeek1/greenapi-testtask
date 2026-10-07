@@ -41,19 +41,6 @@ function ApiResponseEntry({
       className={`terminal-entry ${entry.error ? 'has-error' : ''}`}
       ref={element}
     >
-      <div className="terminal-command">
-        <span className="terminal-prompt" aria-hidden="true">
-          &gt;
-        </span>
-        <span className="terminal-method">{entry.method}</span>
-        <span
-          className={
-            entry.error ? 'terminal-error-code' : 'terminal-success-code'
-          }
-        >
-          {entry.status ?? 'ERROR'}
-        </span>
-      </div>
       <details
         className="terminal-response"
         onToggle={(event) => {
@@ -63,12 +50,23 @@ function ApiResponseEntry({
         }}
       >
         <summary
-          className="terminal-toggle"
+          className="terminal-command"
           role="button"
           aria-expanded={expanded}
           aria-label={`Ответ ${entry.method}`}
           title={expanded ? 'Скрыть ответ' : 'Раскрыть ответ'}
         >
+          <span className="terminal-prompt" aria-hidden="true">
+            &gt;
+          </span>
+          <span className="terminal-method">{entry.method}</span>
+          <span
+            className={
+              entry.error ? 'terminal-error-code' : 'terminal-success-code'
+            }
+          >
+            {entry.status ?? 'ERROR'}
+          </span>
           <Icon name="back" className="terminal-toggle-icon" />
         </summary>
         <pre

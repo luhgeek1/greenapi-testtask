@@ -115,31 +115,21 @@
   align-items: center;
   gap: 8px;
   min-height: 28px;
-  padding: 2px 36px 2px 4px;
-  border-radius: 4px;
-  color: var(--muted);
-}
-.terminal-toggle {
-  position: absolute;
-  top: 2px;
-  right: 4px;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 100%;
+  padding: 2px 9px 2px 4px;
   border-radius: 6px;
   color: var(--muted);
   list-style: none;
   cursor: pointer;
   transition: background-color 160ms ease;
 }
-.terminal-toggle::-webkit-details-marker {
+.terminal-command::-webkit-details-marker {
   display: none;
 }
-.terminal-toggle:hover {
+.terminal-command:hover {
   background: #ffffff08;
 }
-.terminal-toggle:focus-visible {
+.terminal-command:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -148,6 +138,8 @@
   flex-shrink: 0;
 }
 .terminal-toggle-icon {
+  flex-shrink: 0;
+  margin-left: auto;
   width: 14px;
   height: 14px;
   transform: rotate(180deg);
