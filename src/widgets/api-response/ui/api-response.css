@@ -1,5 +1,9 @@
 .response-panel {
+  position: relative;
+  flex-shrink: 0;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
   padding: 12px 16px 16px;
   border: 1px solid var(--border);
   background: var(--background);
@@ -61,24 +65,38 @@
   white-space: nowrap;
 }
 .terminal-methods {
+  display: flex;
+  align-items: center;
   gap: 6px;
   min-width: 0;
 }
 .terminal-method-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 6px 10px;
+  border: 1px solid var(--border);
   border-radius: 8px;
+  color: var(--text);
+  background: var(--field);
   font: 11px/16px var(--mono);
   white-space: nowrap;
 }
 .terminal-method-button svg,
-.terminal-method-button .spinner-border {
+.terminal-method-button .spinner {
   flex-shrink: 0;
   width: 12px;
   height: 12px;
   color: var(--accent-light);
 }
+.terminal-method-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+}
 .terminal-tools {
+  display: flex;
+  align-items: center;
   gap: 4px;
 }
 .terminal-tools .icon-button {
@@ -90,6 +108,8 @@
   height: 12px;
 }
 .request-status {
+  display: flex;
+  align-items: center;
   gap: 6px;
   font-size: 9px;
   color: var(--subtle);
@@ -102,7 +122,7 @@
 .request-status.error {
   color: #ff8585;
 }
-.request-status .spinner-border {
+.request-status .spinner {
   width: 11px;
   height: 11px;
 }
@@ -124,8 +144,11 @@
   margin-bottom: 0;
 }
 .terminal-command {
+  display: flex;
+  align-items: center;
   gap: 8px;
   min-height: 28px;
+  width: 100%;
   padding: 2px 9px 2px 4px;
   border-radius: 6px;
   color: var(--muted);
@@ -143,7 +166,13 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+.terminal-prompt {
+  display: inline-block;
+  flex-shrink: 0;
+}
 .terminal-toggle-icon {
+  flex-shrink: 0;
+  margin-left: auto;
   width: 14px;
   height: 14px;
   transform: rotate(180deg);
@@ -171,6 +200,7 @@
   animation: fade-in 180ms var(--ease-out) both;
 }
 .code-line {
+  display: block;
   min-width: max-content;
 }
 .json-key {
