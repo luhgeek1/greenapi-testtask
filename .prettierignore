@@ -1,5 +1,6 @@
 package-lock.json
 dist
+docs
 node_modules
 CODEX_CONTEXT_GREEN_API.md
 .openai

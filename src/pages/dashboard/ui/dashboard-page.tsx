@@ -238,7 +238,12 @@ export function DashboardPage({
       >
         <header className="connection-modal-header">
           <div className="connection-max-brand" aria-hidden="true">
-            <img src="/max-logo.png" alt="" width="64" height="64" />
+            <img
+              src={`${import.meta.env.BASE_URL}max-logo.png`}
+              alt=""
+              width="64"
+              height="64"
+            />
             <span>MAX</span>
           </div>
           <h2 id="connection-title">
@@ -603,7 +608,12 @@ export function DashboardPage({
           {!client ? (
             <div className="chat-empty welcome-state">
               <span className="welcome-icon">
-                <img src="/max-logo.png" alt="MAX" width="44" height="44" />
+                <img
+                  src={`${import.meta.env.BASE_URL}max-logo.png`}
+                  alt="MAX"
+                  width="44"
+                  height="44"
+                />
               </span>
               <h2>Ваши разговоры — здесь</h2>
               <p>
@@ -619,7 +629,12 @@ export function DashboardPage({
           ) : !active ? (
             <div className="chat-empty welcome-state">
               <span className="welcome-icon">
-                <img src="/max-logo.png" alt="MAX" width="44" height="44" />
+                <img
+                  src={`${import.meta.env.BASE_URL}max-logo.png`}
+                  alt="MAX"
+                  width="44"
+                  height="44"
+                />
               </span>
               <h2>Чаты MAX</h2>
               <p>Выберите чат или найдите контакт по номеру телефона.</p>
