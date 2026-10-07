@@ -132,6 +132,10 @@ export function useChatWorkspace(client: GreenApiClient | null, demo: boolean) {
       createChat.onReset();
       selectChat(id);
     },
+    returnToChats: () => {
+      activeRef.current = null;
+      setActiveId(null);
+    },
     changeDraft,
     openNewChat: () => {
       createChat.onReset();

@@ -18,6 +18,7 @@ import {
 import { formatDay, formatTime } from '@/entities/chat';
 import { Icon } from '@/shared/ui';
 import { useChatWorkspace } from '../model/use-chat-workspace';
+import { useMobileViewport } from '../model/use-mobile-viewport';
 import './dashboard-page.css';
 
 export function DashboardPage({
@@ -42,10 +43,15 @@ export function DashboardPage({
   const [showToken, setShowToken] = useState(false);
   const [search, setSearch] = useState('');
   const [countryCode, setCountryCode] = useState('7');
+  const [showTerminal, setShowTerminal] = useState(false);
+  const mobileHeight = useMobileViewport();
+  const mobile = mobileHeight !== null;
   const action = useRef<AbortController | null>(null);
   const connectionDialog = useRef<HTMLDialogElement>(null);
   const contactDialog = useRef<HTMLDialogElement>(null);
+  const terminalDialog = useRef<HTMLDialogElement>(null);
   const addContactButton = useRef<HTMLButtonElement>(null);
+  const backToChatsButton = useRef<HTMLButtonElement>(null);
   const stream = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const phoneInput = useRef<HTMLInputElement>(null);
@@ -79,26 +85,33 @@ export function DashboardPage({
       ? connectionDialog.current
       : workspace.showNewChat
         ? contactDialog.current
-        : null;
+        : mobile && showTerminal
+          ? terminalDialog.current
+          : null;
     if (!dialog) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     dialog.showModal();
     dialog.scrollTop = 0;
-    if (client) phoneInput.current?.focus();
+    if (client && workspace.showNewChat) phoneInput.current?.focus();
     return () => {
       dialog.close();
       document.body.style.overflow = previousOverflow;
     };
-  }, [client, workspace.showNewChat]);
+  }, [client, workspace.showNewChat, mobile, showTerminal]);
+  useEffect(() => {
+    if (!mobile) setShowTerminal(false);
+  }, [mobile]);
   useEffect(() => {
     if (stream.current) stream.current.scrollTop = stream.current.scrollHeight;
   }, [active?.id, lastMessage?.id]);
   useEffect(() => {
     if (client && workspace.showNewChat) phoneInput.current?.focus();
-    else if (client && active) composer.current?.focus();
-    else if (client) addContactButton.current?.focus();
-  }, [client, workspace.showNewChat, active?.id]);
+    else if (client && active) {
+      if (mobile) backToChatsButton.current?.focus();
+      else composer.current?.focus();
+    } else if (client) addContactButton.current?.focus();
+  }, [client, workspace.showNewChat, active?.id, mobile]);
 
   useEffect(() => {
     const input = composer.current;
@@ -140,6 +153,7 @@ export function DashboardPage({
     setConnectionError('');
     setShowToken(false);
     setSearch('');
+    setShowTerminal(false);
     clear();
     if (!demo)
       setCredentials((current) => ({ ...current, apiTokenInstance: '' }));
@@ -173,6 +187,11 @@ export function DashboardPage({
     setSearch('');
     setCountryCode('7');
     workspace.openNewChat();
+  }
+
+  function returnToChats() {
+    composer.current?.blur();
+    workspace.returnToChats();
   }
 
   function changePhone(value: string) {
@@ -212,7 +231,7 @@ export function DashboardPage({
   function modalKeyDown(event: KeyboardEvent<HTMLDialogElement>) {
     if (event.key !== 'Tab') return;
     const controls = event.currentTarget.querySelectorAll<HTMLElement>(
-      'input:enabled, button:enabled, select:enabled',
+      'input:enabled, button:enabled, select:enabled, summary, [tabindex="0"]',
     );
     const first = controls[0];
     const last = controls[controls.length - 1];
@@ -226,8 +245,37 @@ export function DashboardPage({
     }
   }
 
+  const receivingNotice =
+    client && receiving.error ? (
+      <div className="receiving-notice" role="alert">
+        <span>
+          {receiving.stopped && 'Получение сообщений остановлено. '}
+          {receiving.error}
+          {!receiving.stopped && ' Повторяем автоматически.'}
+        </span>
+        <button type="button" onClick={receiving.onRetry}>
+          Повторить
+        </button>
+      </div>
+    ) : null;
+  const terminal = (
+    <ApiResponsePanel
+      result={result}
+      history={history}
+      pending={pending}
+      diagnosticsDisabled={connecting}
+      onDiagnose={(method) => void diagnose(method)}
+      onClear={clear}
+      resizable={!mobile}
+      onClose={mobile ? () => setShowTerminal(false) : undefined}
+    />
+  );
+
   return (
-    <div className={`dashboard-page ${client ? 'is-connected' : ''}`}>
+    <div
+      className={`dashboard-page ${client ? 'is-connected' : ''} ${active ? 'has-active-chat' : ''}`}
+      style={mobileHeight !== null ? { height: mobileHeight } : undefined}
+    >
       <dialog
         ref={connectionDialog}
         className="connection-modal"
@@ -472,6 +520,7 @@ export function DashboardPage({
                 onChange={(event) => setSearch(event.target.value)}
               />
             </div>
+            <div className="mobile-receiving-notice">{receivingNotice}</div>
             <nav className="chat-list" aria-label="Список чатов">
               {chats.map((chat) => {
                 const preview = chat.messages.at(-1);
@@ -563,12 +612,32 @@ export function DashboardPage({
                 </p>
               )}
             </section>
+            <button
+              type="button"
+              className="mobile-terminal-launch"
+              aria-label="Открыть терминал API"
+              onClick={() => setShowTerminal(true)}
+              disabled={!client}
+            >
+              <Icon name="code" />
+              <span>Диагностика API</span>
+              <Icon name="back" className="mobile-terminal-arrow" />
+            </button>
           </footer>
         </div>
       </aside>
       <main className="client-main">
         <section className="chat-panel" aria-label="Переписка">
           <header className="chat-topbar">
+            <button
+              ref={backToChatsButton}
+              type="button"
+              className="icon-button mobile-back-button"
+              aria-label="Вернуться к чатам"
+              onClick={returnToChats}
+            >
+              <Icon name="back" />
+            </button>
             <div className="chat-topbar-left">
               <Icon name="chat" />
               <span>MAX Messenger</span>
@@ -592,19 +661,16 @@ export function DashboardPage({
                       ? 'Демо · на связи'
                       : 'На связи'}
             </span>
+            <button
+              type="button"
+              className="icon-button mobile-chat-terminal-button"
+              aria-label="Открыть терминал API"
+              onClick={() => setShowTerminal(true)}
+            >
+              <Icon name="code" />
+            </button>
           </header>
-          {client && receiving.error && (
-            <div className="receiving-notice" role="alert">
-              <span>
-                {receiving.stopped && 'Получение сообщений остановлено. '}
-                {receiving.error}
-                {!receiving.stopped && ' Повторяем автоматически.'}
-              </span>
-              <button type="button" onClick={receiving.onRetry}>
-                Повторить
-              </button>
-            </div>
-          )}
+          {receivingNotice}
           {!client ? (
             <div className="chat-empty welcome-state">
               <span className="welcome-icon">
@@ -744,15 +810,28 @@ export function DashboardPage({
             </>
           )}
         </section>
-        <ApiResponsePanel
-          result={result}
-          history={history}
-          pending={pending}
-          diagnosticsDisabled={connecting}
-          onDiagnose={(method) => void diagnose(method)}
-          onClear={clear}
-        />
+        {!mobile && terminal}
       </main>
+      {mobile && (
+        <dialog
+          ref={terminalDialog}
+          className="mobile-terminal-dialog"
+          aria-label="Диагностика API"
+          onKeyDown={modalKeyDown}
+          onToggle={(event) => {
+            const dialog = event.currentTarget;
+            if (!dialog.open || dialog.querySelector('details[open]')) return;
+            const content = dialog.querySelector('.terminal-content');
+            if (content) content.scrollTop = content.scrollHeight;
+          }}
+          onCancel={(event) => {
+            event.preventDefault();
+            setShowTerminal(false);
+          }}
+        >
+          {terminal}
+        </dialog>
+      )}
     </div>
   );
 }
