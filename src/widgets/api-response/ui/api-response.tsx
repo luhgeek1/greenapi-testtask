@@ -51,13 +51,16 @@ function ApiResponseEntry({
         }}
       >
         <summary
-          className="terminal-command"
+          className="terminal-command d-flex align-items-center w-100"
           role="button"
           aria-expanded={expanded}
           aria-label={`Ответ ${entry.method}`}
           title={expanded ? 'Скрыть ответ' : 'Раскрыть ответ'}
         >
-          <span className="terminal-prompt" aria-hidden="true">
+          <span
+            className="terminal-prompt d-inline-block flex-shrink-0"
+            aria-hidden="true"
+          >
             &gt;
           </span>
           <span className="terminal-method">{entry.method}</span>
@@ -68,7 +71,10 @@ function ApiResponseEntry({
           >
             {entry.status ?? 'ERROR'}
           </span>
-          <Icon name="back" className="terminal-toggle-icon" />
+          <Icon
+            name="back"
+            className="terminal-toggle-icon ms-auto flex-shrink-0"
+          />
         </summary>
         <pre
           className="json-output"
@@ -78,7 +84,7 @@ function ApiResponseEntry({
             {JSON.stringify(entry.data, null, 2)
               .split('\n')
               .map((line, lineIndex) => (
-                <span className="code-line" key={lineIndex}>
+                <span className="code-line d-block" key={lineIndex}>
                   {highlight(line)}
                   {'\n'}
                 </span>
@@ -153,7 +159,7 @@ export function ApiResponsePanel({
     <section
       ref={panel}
       id="api-terminal"
-      className={`response-panel ${resizing ? 'is-resizing' : ''}`}
+      className={`response-panel d-flex flex-column flex-shrink-0 position-relative ${resizing ? 'is-resizing' : ''}`}
       style={{ height: size.height }}
       aria-labelledby="response-title"
       aria-busy={Boolean(pending)}
@@ -177,7 +183,7 @@ export function ApiResponsePanel({
           API Terminal Logs
         </h2>
         <div
-          className="terminal-methods"
+          className="terminal-methods d-flex align-items-center"
           role="group"
           aria-label="Диагностика API"
         >
@@ -185,13 +191,16 @@ export function ApiResponsePanel({
             <button
               key={method}
               type="button"
-              className="terminal-method-button"
+              className="btn btn-secondary btn-sm terminal-method-button d-inline-flex align-items-center justify-content-center"
               disabled={diagnosticsDisabled || Boolean(pending)}
               aria-busy={pending === method}
               onClick={() => onDiagnose(method)}
             >
               {pending === method ? (
-                <span className="spinner" />
+                <span
+                  className="spinner-border spinner-border-sm"
+                  aria-hidden="true"
+                />
               ) : (
                 <Icon name="server" />
               )}
@@ -199,14 +208,17 @@ export function ApiResponsePanel({
             </button>
           ))}
         </div>
-        <div className="terminal-tools">
+        <div className="terminal-tools d-flex align-items-center">
           <span
-            className={`request-status ${result?.error ? 'error' : result ? 'success' : ''}`}
+            className={`request-status d-flex align-items-center ${result?.error ? 'error' : result ? 'success' : ''}`}
             role="status"
           >
             {pending ? (
               <>
-                <span className="spinner" />
+                <span
+                  className="spinner-border spinner-border-sm"
+                  aria-hidden="true"
+                />
                 Выполняем запрос…
               </>
             ) : result ? (
@@ -221,7 +233,7 @@ export function ApiResponsePanel({
           </span>
           <button
             type="button"
-            className="icon-button"
+            className="btn icon-button"
             onClick={() => void copy()}
             disabled={!result || Boolean(pending)}
             aria-label={
@@ -235,7 +247,7 @@ export function ApiResponsePanel({
           </button>
           <button
             type="button"
-            className="icon-button"
+            className="btn icon-button"
             onClick={clear}
             disabled={history.length === 0 || Boolean(pending)}
             aria-label="Очистить ответ"

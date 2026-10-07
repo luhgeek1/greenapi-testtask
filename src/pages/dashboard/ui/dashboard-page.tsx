@@ -227,17 +227,22 @@ export function DashboardPage({
   }
 
   return (
-    <div className={`dashboard-page ${client ? 'is-connected' : ''}`}>
+    <div
+      className={`dashboard-page d-flex w-100 ${client ? 'is-connected' : ''}`}
+    >
       <dialog
         ref={connectionDialog}
-        className="connection-modal"
+        className="modal-content connection-modal"
         aria-labelledby="connection-title"
         aria-describedby="connection-description"
         onCancel={(event) => event.preventDefault()}
         onKeyDown={modalKeyDown}
       >
         <header className="connection-modal-header">
-          <div className="connection-max-brand" aria-hidden="true">
+          <div
+            className="connection-max-brand d-flex align-items-center justify-content-center"
+            aria-hidden="true"
+          >
             <img src="/max-logo.png" alt="" width="64" height="64" />
             <span>MAX</span>
           </div>
@@ -252,8 +257,11 @@ export function DashboardPage({
             disabled={connecting || Boolean(pending) || Boolean(client)}
           >
             <div className="field">
-              <label htmlFor="idInstance">idInstance</label>
+              <label className="form-label" htmlFor="idInstance">
+                idInstance
+              </label>
               <input
+                className="form-control"
                 id="idInstance"
                 inputMode="numeric"
                 pattern="[0-9]+"
@@ -267,9 +275,12 @@ export function DashboardPage({
               />
             </div>
             <div className="field">
-              <label htmlFor="apiTokenInstance">apiTokenInstance</label>
+              <label className="form-label" htmlFor="apiTokenInstance">
+                apiTokenInstance
+              </label>
               <div className="token-field">
                 <input
+                  className="form-control"
                   id="apiTokenInstance"
                   type={showToken ? 'text' : 'password'}
                   required
@@ -281,6 +292,7 @@ export function DashboardPage({
                   }
                 />
                 <button
+                  className="btn icon-button"
                   type="button"
                   onClick={() => setShowToken((value) => !value)}
                   aria-label={showToken ? 'Скрыть токен' : 'Показать токен'}
@@ -291,8 +303,11 @@ export function DashboardPage({
               </div>
             </div>
             <div className="field">
-              <label htmlFor="apiUrl">apiUrl</label>
+              <label className="form-label" htmlFor="apiUrl">
+                apiUrl
+              </label>
               <input
+                className="form-control"
                 id="apiUrl"
                 type="url"
                 required
@@ -307,7 +322,7 @@ export function DashboardPage({
           </fieldset>
           <button
             type="button"
-            className="mode-switch"
+            className="btn btn-link mode-switch d-flex align-items-center justify-content-center text-decoration-none"
             onClick={onModeChange}
             disabled={connecting || Boolean(pending)}
           >
@@ -321,10 +336,15 @@ export function DashboardPage({
           </p>
           {!client && (
             <button
-              className="primary-button connect-button"
+              className="btn btn-primary connect-button d-flex align-items-center justify-content-center gap-2"
               disabled={connecting || Boolean(pending) || !credentialsComplete}
             >
-              {connecting ? <span className="spinner" /> : null}
+              {connecting ? (
+                <span
+                  className="spinner-border spinner-border-sm"
+                  aria-hidden="true"
+                />
+              ) : null}
               {connecting ? 'Подключаемся…' : 'Подключиться'}
             </button>
           )}
@@ -334,14 +354,14 @@ export function DashboardPage({
             {connectionError}
           </p>
         )}
-        <p className="connection-privacy">
+        <p className="connection-privacy d-flex align-items-center justify-content-center">
           <Icon name="lock" />
           Токен хранится только в этой вкладке
         </p>
       </dialog>
       <dialog
         ref={contactDialog}
-        className="contact-modal"
+        className="modal-content contact-modal"
         aria-labelledby="contact-search-title"
         onKeyDown={modalKeyDown}
         onCancel={(event) => {
@@ -363,20 +383,21 @@ export function DashboardPage({
         <h2 id="contact-search-title">Найти по номеру</h2>
         <button
           type="button"
-          className="contact-modal-close"
+          className="btn icon-button contact-modal-close rounded-circle"
           aria-label="Закрыть поиск"
           onClick={workspace.closeNewChat}
         >
           <Icon name="close" />
         </button>
         <form onSubmit={newChat} aria-label="Добавление контакта">
-          <div className="contact-phone-field">
+          <div className="contact-phone-field d-flex align-items-center">
             <div className="contact-country">
               <span aria-hidden="true">
                 <span>{countryCode === '7' ? '🇷🇺' : '🇧🇾'}</span>+{countryCode}
                 <Icon name="back" />
               </span>
               <select
+                className="form-select"
                 aria-label="Страна"
                 value={countryCode}
                 disabled={createChat.busy}
@@ -394,6 +415,7 @@ export function DashboardPage({
               </select>
             </div>
             <input
+              className="form-control"
               ref={phoneInput}
               aria-label="Телефон получателя"
               type="tel"
@@ -409,10 +431,15 @@ export function DashboardPage({
             />
           </div>
           <button
-            className="primary-button contact-search-button"
+            className="btn btn-primary contact-search-button d-flex align-items-center justify-content-center gap-2 w-100"
             disabled={createChat.busy || !nationalPhone.trim()}
           >
-            {createChat.busy && <span className="spinner" />}
+            {createChat.busy && (
+              <span
+                className="spinner-border spinner-border-sm"
+                aria-hidden="true"
+              />
+            )}
             {createChat.busy ? 'Ищем…' : 'Найти в MAX'}
           </button>
           {createChat.error && (
@@ -422,23 +449,29 @@ export function DashboardPage({
           )}
         </form>
       </dialog>
-      <aside className="client-sidebar" aria-label="Подключение и чаты">
-        <div className="sidebar-content">
-          <header className="sidebar-brand">
+      <aside
+        className="client-sidebar flex-shrink-0"
+        aria-label="Подключение и чаты"
+      >
+        <div className="sidebar-content d-flex flex-column w-100">
+          <header className="sidebar-brand d-flex align-items-center">
             <span
               className={`brand-dot ${connecting ? 'is-working' : ''}`}
               aria-hidden="true"
             />
             <h1>MAX Client</h1>
-            {demo && <span className="demo-badge">DEMO</span>}
+            {demo && <span className="badge demo-badge">DEMO</span>}
           </header>
-          <section className="chats-section" aria-labelledby="chats-title">
-            <div className="chats-heading">
-              <h2 id="chats-title">
+          <section
+            className="chats-section d-flex flex-column"
+            aria-labelledby="chats-title"
+          >
+            <div className="chats-heading d-flex align-items-center justify-content-between">
+              <h2 id="chats-title" className="d-flex align-items-center gap-2">
                 Чаты
                 {unread > 0 && (
                   <span
-                    className="total-unread"
+                    className="badge rounded-pill total-unread"
                     aria-label={`${unread} непрочитанных`}
                   >
                     {unread}
@@ -448,7 +481,7 @@ export function DashboardPage({
               <button
                 ref={addContactButton}
                 type="button"
-                className="new-chat-button"
+                className="btn btn-primary new-chat-button d-inline-flex align-items-center justify-content-center rounded-circle p-0"
                 aria-label="Добавить новый контакт"
                 title="Добавить контакт по номеру телефона"
                 disabled={!client}
@@ -460,6 +493,7 @@ export function DashboardPage({
             <div className="chat-search">
               <Icon name="search" />
               <input
+                className="form-control"
                 aria-label="Поиск чатов"
                 placeholder="Найти"
                 value={search}
@@ -467,13 +501,13 @@ export function DashboardPage({
                 onChange={(event) => setSearch(event.target.value)}
               />
             </div>
-            <nav className="chat-list" aria-label="Список чатов">
+            <nav className="list-group chat-list" aria-label="Список чатов">
               {chats.map((chat) => {
                 const preview = chat.messages.at(-1);
                 return (
                   <button
                     type="button"
-                    className={`chat-list-item ${active?.id === chat.id ? 'is-active' : ''}`}
+                    className={`list-group-item list-group-item-action chat-list-item d-flex align-items-center ${active?.id === chat.id ? 'active' : ''}`}
                     key={chat.id}
                     aria-label={`Чат ${chat.title}`}
                     aria-current={active?.id === chat.id ? 'page' : undefined}
@@ -482,7 +516,7 @@ export function DashboardPage({
                     }}
                   >
                     <span
-                      className={`chat-avatar ${[...chat.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 2 === 0 ? 'avatar-violet' : ''}`}
+                      className={`chat-avatar d-flex align-items-center justify-content-center flex-shrink-0 rounded-circle ${[...chat.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 2 === 0 ? 'avatar-violet' : ''}`}
                     >
                       {chat.title.startsWith('+') ? (
                         <Icon name="phone" />
@@ -491,17 +525,19 @@ export function DashboardPage({
                       )}
                     </span>
                     <span className="chat-list-copy">
-                      <span className="chat-list-title">{chat.title}</span>
-                      <span className="chat-preview">
+                      <span className="chat-list-title d-block text-truncate">
+                        {chat.title}
+                      </span>
+                      <span className="chat-preview d-block text-truncate">
                         {preview?.direction === 'outgoing' ? 'Вы: ' : ''}
                         {preview?.text || 'Начните переписку'}
                       </span>
                     </span>
-                    <span className="chat-list-meta">
+                    <span className="chat-list-meta d-flex flex-column align-items-end justify-content-between">
                       {preview && <time>{formatTime(preview.timestamp)}</time>}
                       {chat.unread > 0 && (
                         <span
-                          className="unread-badge"
+                          className="badge rounded-pill text-bg-primary unread-badge"
                           aria-label={`${chat.unread} непрочитанных`}
                         >
                           {chat.unread}
@@ -524,16 +560,16 @@ export function DashboardPage({
           </section>
           <footer className="sidebar-footer">
             <section
-              className="connection-section"
+              className="card connection-section"
               aria-label="GREEN-API Connection"
             >
-              <h2 className="sidebar-heading">
+              <h2 className="sidebar-heading d-flex align-items-center gap-2">
                 <Icon name="connection" />
                 <span>Connection</span>
               </h2>
-              <div className="session-summary">
+              <div className="session-summary d-flex align-items-center justify-content-between gap-2">
                 <span
-                  className={`session-status ${client ? '' : 'is-offline'}`}
+                  className={`session-status d-flex align-items-center ${client ? '' : 'is-offline'}`}
                 >
                   <i />
                   {client
@@ -543,7 +579,7 @@ export function DashboardPage({
                 {client && (
                   <button
                     type="button"
-                    className="icon-button"
+                    className="btn icon-button"
                     onClick={disconnect}
                     aria-label="Отключиться"
                     title="Отключиться"
@@ -561,19 +597,22 @@ export function DashboardPage({
           </footer>
         </div>
       </aside>
-      <main className="client-main">
-        <section className="chat-panel" aria-label="Переписка">
+      <main className="client-main d-flex flex-column">
+        <section
+          className="chat-panel d-flex flex-column position-relative"
+          aria-label="Переписка"
+        >
           <header className="chat-topbar">
             <div className="chat-topbar-left">
               <Icon name="chat" />
               <span>MAX Messenger</span>
             </div>
-            <div className="contact-pill">
+            <div className="contact-pill d-flex align-items-center justify-content-center rounded-pill">
               <Icon name={active ? 'phone' : 'chat'} />
               <span>{active ? active.title : 'Выберите контакт'}</span>
             </div>
             <span
-              className={`connection-indicator ${client && !receiving.error ? 'online' : ''}`}
+              className={`connection-indicator d-flex align-items-center ${client && !receiving.error ? 'online' : ''}`}
               role="status"
             >
               <i />
@@ -589,20 +628,27 @@ export function DashboardPage({
             </span>
           </header>
           {client && receiving.error && (
-            <div className="receiving-notice" role="alert">
+            <div
+              className="alert alert-danger receiving-notice d-flex align-items-center flex-shrink-0"
+              role="alert"
+            >
               <span>
                 {receiving.stopped && 'Получение сообщений остановлено. '}
                 {receiving.error}
                 {!receiving.stopped && ' Повторяем автоматически.'}
               </span>
-              <button type="button" onClick={receiving.onRetry}>
+              <button
+                type="button"
+                className="btn btn-outline-danger btn-sm"
+                onClick={receiving.onRetry}
+              >
                 Повторить
               </button>
             </div>
           )}
           {!client ? (
-            <div className="chat-empty welcome-state">
-              <span className="welcome-icon">
+            <div className="chat-empty welcome-state d-flex flex-column align-items-center justify-content-center text-center">
+              <span className="welcome-icon d-flex align-items-center justify-content-center">
                 <img src="/max-logo.png" alt="MAX" width="44" height="44" />
               </span>
               <h2>Ваши разговоры — здесь</h2>
@@ -617,15 +663,15 @@ export function DashboardPage({
               </span>
             </div>
           ) : !active ? (
-            <div className="chat-empty welcome-state">
-              <span className="welcome-icon">
+            <div className="chat-empty welcome-state d-flex flex-column align-items-center justify-content-center text-center">
+              <span className="welcome-icon d-flex align-items-center justify-content-center">
                 <img src="/max-logo.png" alt="MAX" width="44" height="44" />
               </span>
               <h2>Чаты MAX</h2>
               <p>Выберите чат или найдите контакт по номеру телефона.</p>
               <button
                 type="button"
-                className="primary-button contact-search-launch"
+                className="btn btn-primary contact-search-launch d-flex align-items-center justify-content-center gap-2"
                 onClick={openContactSearch}
               >
                 Найти по номеру
@@ -642,18 +688,22 @@ export function DashboardPage({
                 aria-relevant="additions"
               >
                 {active.messages.length === 0 && (
-                  <div className="chat-empty">Тут пока ничего нет</div>
+                  <div className="chat-empty d-flex align-items-center justify-content-center text-center">
+                    Тут пока ничего нет
+                  </div>
                 )}
                 {active.messages.map((item, index) => (
                   <div key={`${item.direction}-${item.id}`}>
                     {(index === 0 ||
                       formatDay(active.messages[index - 1].timestamp) !==
                         formatDay(item.timestamp)) && (
-                      <div className="day-separator">
+                      <div className="day-separator d-flex justify-content-center">
                         <span>{formatDay(item.timestamp)}</span>
                       </div>
                     )}
-                    <div className={`message-row ${item.direction}`}>
+                    <div
+                      className={`message-row d-flex ${item.direction === 'incoming' ? 'justify-content-start' : 'justify-content-end'}`}
+                    >
                       <article
                         className={`sent-bubble ${item.direction === 'incoming' ? 'incoming-bubble' : ''}`}
                         aria-label={
@@ -663,7 +713,7 @@ export function DashboardPage({
                         }
                       >
                         <p className="bubble-text">{item.text}</p>
-                        <div className="bubble-meta">
+                        <div className="bubble-meta d-flex align-items-end justify-content-end">
                           <time
                             dateTime={new Date(item.timestamp).toISOString()}
                           >
@@ -671,7 +721,7 @@ export function DashboardPage({
                           </time>
                           {item.direction === 'outgoing' && (
                             <span
-                              className="sent-state"
+                              className="sent-state d-inline-flex"
                               aria-label="Принято API"
                               title="Принято API"
                             >
@@ -690,13 +740,14 @@ export function DashboardPage({
                 </p>
               )}
               <form
-                className="message-form"
+                className="message-form d-flex align-items-end flex-shrink-0 w-100"
                 onSubmit={sendMessage}
                 aria-label="Отправка сообщения"
               >
-                <div className="composer-field">
+                <div className="composer-field position-relative">
                   <Icon name="message" />
                   <textarea
+                    className="form-control"
                     ref={composer}
                     aria-label="Сообщение"
                     required
@@ -711,13 +762,16 @@ export function DashboardPage({
                   />
                 </div>
                 <button
-                  className="send-button"
+                  className="btn btn-primary send-button d-inline-flex align-items-center justify-content-center flex-shrink-0 rounded-pill p-0"
                   disabled={workspace.busy || !workspace.draft.trim()}
                   aria-label="Отправить сообщение"
                   title="Отправить сообщение"
                 >
                   {workspace.busy ? (
-                    <span className="spinner" />
+                    <span
+                      className="spinner-border spinner-border-sm"
+                      aria-hidden="true"
+                    />
                   ) : (
                     <Icon name="send" />
                   )}
