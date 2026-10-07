@@ -603,7 +603,7 @@ export function DashboardPage({
           {!client ? (
             <div className="chat-empty welcome-state">
               <span className="welcome-icon">
-                <Icon name="chat" />
+                <img src="/max-logo.png" alt="MAX" width="44" height="44" />
               </span>
               <h2>Ваши разговоры — здесь</h2>
               <p>
@@ -619,7 +619,7 @@ export function DashboardPage({
           ) : !active ? (
             <div className="chat-empty welcome-state">
               <span className="welcome-icon">
-                <Icon name="chat" />
+                <img src="/max-logo.png" alt="MAX" width="44" height="44" />
               </span>
               <h2>Чаты MAX</h2>
               <p>Выберите чат или найдите контакт по номеру телефона.</p>

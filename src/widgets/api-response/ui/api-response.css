@@ -1,6 +1,6 @@
 .response-panel {
+  position: relative;
   flex-shrink: 0;
-  height: 176px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -11,6 +11,39 @@
   color: var(--muted);
   font: 12px var(--mono);
   animation: fade-up 500ms 150ms var(--ease-out) both;
+}
+.terminal-resize-handle {
+  position: absolute;
+  inset: -15px 0 auto;
+  display: grid;
+  place-items: center;
+  height: 14px;
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+  outline: none;
+}
+.terminal-resize-handle::after {
+  content: '';
+  width: 44px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--subtle);
+  opacity: 0.6;
+  transition:
+    background-color 160ms,
+    opacity 160ms,
+    width 160ms;
+}
+.terminal-resize-handle:hover::after,
+.terminal-resize-handle:focus-visible::after,
+.is-resizing .terminal-resize-handle::after {
+  width: 60px;
+  background: var(--accent-light);
+  opacity: 1;
+}
+.terminal-resize-handle:focus-visible::after {
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 .terminal-header {
   display: flex;
@@ -223,7 +256,6 @@
 }
 @media (max-width: 700px) {
   .response-panel {
-    height: 220px;
     padding: 12px;
   }
   .terminal-header {

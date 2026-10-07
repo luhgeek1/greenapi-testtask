@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { RequestResult } from '@/features/api-log';
 import type { ApiMethod } from '@/shared/api';
 import { Icon } from '@/shared/ui';
+import { useTerminalResize } from '../model/use-terminal-resize';
 import './api-response.css';
 
 function highlight(line: string) {
@@ -105,6 +106,7 @@ export function ApiResponsePanel({
   onDiagnose: (method: 'getSettings' | 'getStateInstance') => void;
   onClear: () => void;
 }) {
+  const { panel, resizing, size, handle } = useTerminalResize();
   const [copiedText, setCopiedText] = useState('');
   const [copyError, setCopyError] = useState('');
   const content = useRef<HTMLDivElement>(null);
@@ -149,10 +151,27 @@ export function ApiResponsePanel({
 
   return (
     <section
-      className="response-panel"
+      ref={panel}
+      id="api-terminal"
+      className={`response-panel ${resizing ? 'is-resizing' : ''}`}
+      style={{ height: size.height }}
       aria-labelledby="response-title"
       aria-busy={Boolean(pending)}
     >
+      <div
+        className="terminal-resize-handle"
+        role="separator"
+        tabIndex={0}
+        aria-label="Высота терминала"
+        aria-orientation="horizontal"
+        aria-controls="api-terminal"
+        aria-valuemin={size.min}
+        aria-valuemax={size.max}
+        aria-valuenow={size.height}
+        aria-valuetext={`${size.height} пикселей`}
+        title="Потяните, чтобы изменить высоту. Двойной клик — сброс"
+        {...handle}
+      />
       <header className="terminal-header">
         <h2 id="response-title" aria-label="API Response">
           API Terminal Logs
