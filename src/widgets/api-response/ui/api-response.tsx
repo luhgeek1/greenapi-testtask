@@ -98,6 +98,8 @@ export function ApiResponsePanel({
   diagnosticsDisabled,
   onDiagnose,
   onClear,
+  resizable = true,
+  onClose,
 }: {
   result: RequestResult | null;
   history: RequestResult[];
@@ -105,8 +107,10 @@ export function ApiResponsePanel({
   diagnosticsDisabled: boolean;
   onDiagnose: (method: 'getSettings' | 'getStateInstance') => void;
   onClear: () => void;
+  resizable?: boolean;
+  onClose?: () => void;
 }) {
-  const { panel, resizing, size, handle } = useTerminalResize();
+  const { panel, resizing, size, handle } = useTerminalResize(resizable);
   const [copiedText, setCopiedText] = useState('');
   const [copyError, setCopyError] = useState('');
   const content = useRef<HTMLDivElement>(null);
@@ -154,24 +158,26 @@ export function ApiResponsePanel({
       ref={panel}
       id="api-terminal"
       className={`response-panel ${resizing ? 'is-resizing' : ''}`}
-      style={{ height: size.height }}
+      style={resizable ? { height: size.height } : undefined}
       aria-labelledby="response-title"
       aria-busy={Boolean(pending)}
     >
-      <div
-        className="terminal-resize-handle"
-        role="separator"
-        tabIndex={0}
-        aria-label="Высота терминала"
-        aria-orientation="horizontal"
-        aria-controls="api-terminal"
-        aria-valuemin={size.min}
-        aria-valuemax={size.max}
-        aria-valuenow={size.height}
-        aria-valuetext={`${size.height} пикселей`}
-        title="Потяните, чтобы изменить высоту. Двойной клик — сброс"
-        {...handle}
-      />
+      {resizable && (
+        <div
+          className="terminal-resize-handle"
+          role="separator"
+          tabIndex={0}
+          aria-label="Высота терминала"
+          aria-orientation="horizontal"
+          aria-controls="api-terminal"
+          aria-valuemin={size.min}
+          aria-valuemax={size.max}
+          aria-valuenow={size.height}
+          aria-valuetext={`${size.height} пикселей`}
+          title="Потяните, чтобы изменить высоту. Двойной клик — сброс"
+          {...handle}
+        />
+      )}
       <header className="terminal-header">
         <h2 id="response-title" aria-label="API Response">
           API Terminal Logs
@@ -219,6 +225,17 @@ export function ApiResponsePanel({
               'Готов к запросу'
             )}
           </span>
+          {onClose && (
+            <button
+              type="button"
+              className="icon-button"
+              onClick={onClose}
+              aria-label="Закрыть терминал API"
+              title="Закрыть терминал"
+            >
+              <Icon name="close" />
+            </button>
+          )}
           <button
             type="button"
             className="icon-button"

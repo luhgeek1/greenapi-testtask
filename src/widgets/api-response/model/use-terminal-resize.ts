@@ -9,7 +9,7 @@ function clamp(height: number, min: number, max: number) {
   return Math.min(max, Math.max(min, height));
 }
 
-export function useTerminalResize() {
+export function useTerminalResize(enabled = true) {
   const panel = useRef<HTMLElement>(null);
   const preferredHeight = useRef<number | null>(null);
   const drag = useRef<{
@@ -25,6 +25,7 @@ export function useTerminalResize() {
   }));
 
   useEffect(() => {
+    if (!enabled) return;
     const parent = panel.current?.parentElement;
     if (!parent) return;
     function measure() {
@@ -45,7 +46,7 @@ export function useTerminalResize() {
     const observer = new ResizeObserver(measure);
     observer.observe(parent);
     return () => observer.disconnect();
-  }, []);
+  }, [enabled]);
 
   function resize(height: number) {
     const next = clamp(height, size.min, size.max);
